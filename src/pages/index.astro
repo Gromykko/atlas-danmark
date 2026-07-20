@@ -1,0 +1,716 @@
+---
+import { atlas } from "../data/atlas.ts";
+import { isProvisional, type AtlasEvent, type Confidence, type Text } from "../data/schema.ts";
+import { pack, timeScale } from "../data/layout.ts";
+
+// Reader-visible chrome. The dataset is bilingual by type; these strings are
+// the UI's own and were the only place English leaked into the Danish view.
+const CONFIDENCE: Record<Confidence, Text> = {
+  established: { en: "established", da: "veletableret" },
+  sourced: { en: "sourced", da: "kildebelagt" },
+  contested: { en: "contested", da: "omstridt" },
+  legendary: { en: "legendary", da: "sagnstof" }
+};
+const UI = {
+  provisional: {
+    en: "provisional — Wikipedia only",
+    da: "foreløbig — kun Wikipedia"
+  },
+  unverified: { en: "unverified", da: "ikke verificeret" },
+  close: { en: "Close", da: "Luk" }
+};
+
+// The plate: time runs down, themes run across in columns. One screen-sized
+// object you read like a map, not a list you scroll through. The vertical
+// scale is piecewise, not linear — see timeScale() for why.
+const { minYear, maxYear } = atlas.meta;
+
+const themeOf = new Map(atlas.themes.map((t) => [t.id, t]));
+const colIndex = new Map(atlas.columns.map((c, i) => [c.id, i]));
+const columnOf = (e: AtlasEvent) => themeOf.get(e.theme)!.column;
+
+const events = [...atlas.events].sort((a, b) => a.year - b.year);
+const linked = new Set(atlas.links.flatMap((l) => [l.from, l.to]));
+const byId = new Map(events.map((e) => [e.id, e]));
+
+// Card height is computed here and then ENFORCED in CSS (fixed height + line
+// clamp), rather than predicted and hoped for. An earlier version estimated it
+// from character count and let the browser lay out freely; the two disagreed
+// and cards overlapped in three places. If the packer and the renderer do not
+// agree on how tall a card is, the packer's guarantee is worthless.
+const CHARS_PER_LINE = 22; // at the 1330px min-width floor set in CSS
+const LINE = 17;
+const GAP = 6;
+const CHROME = 25; // padding + border + year line
+
+const titleLines = (e: AtlasEvent) =>
+  Math.min(3, Math.max(1, Math.ceil(Math.max(e.title.en.length, e.title.da.length) / CHARS_PER_LINE)));
+const cardHeight = (e: AtlasEvent) => CHROME + titleLines(e) * LINE;
+
+// Give each decade the room its own densest column needs, then place cards on
+// the resulting scale. Without this the 1940s get a fraction of the space their
+// record requires and cards end up pushed a century below their date.
+const DECADE = 10;
+const decades = [];
+for (let d = Math.floor(minYear / DECADE) * DECADE; d < maxYear; d += DECADE)
+  decades.push({ id: `d${d}`, from: d, to: d + DECADE });
+
+const needs = new Map<string, number>();
+for (const d of decades) {
+  const stacks = new Map<string, number>();
+  for (const e of events)
+    if (e.year >= d.from && e.year < d.to) {
+      const c = columnOf(e);
+      stacks.set(c, (stacks.get(c) ?? 0) + cardHeight(e) + GAP);
+    }
+  needs.set(d.id, Math.max(0, ...stacks.values()));
+}
+const scale = timeScale(decades, needs);
+const y = scale.y;
+
+// Cards sit at their year, but a dense decade can still collide. Pack each
+// column downward so a card never starts above the previous card's bottom.
+// Displaced cards get a leader line back to the true year — a card silently
+// sitting below its date is exactly the quiet lie this atlas exists to avoid.
+const layout = pack(
+  events.map((e) => ({ id: e.id, col: columnOf(e), want: y(e.year), height: cardHeight(e) })),
+  GAP
+);
+const H_PACKED = Math.max(scale.total, ...[...layout.values()].map((p) => p.top)) + 60;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Atlas Danmark · 690–2026</title>
+    <meta
+      name="description"
+      content="A sourced historical atlas of Denmark, 690–2026. Every record cites its evidence; contested history is shown as contested."
+    />
+  </head>
+  <body data-lang="en">
+    <header>
+      <h1>
+        <span class="en">Atlas Danmark</span><span class="da">Atlas Danmark</span>
+        <small>{minYear}–{maxYear}</small>
+      </h1>
+      <p class="lede">
+        <span class="en"
+          >{events.length} sourced records. Contested history is shown with both readings — never
+          one national story quietly chosen.</span
+        >
+        <span class="da"
+          >{events.length} kildebelagte nedslag. Omstridt historie vises med begge læsninger — aldrig
+          én national fortælling valgt i stilhed.</span
+        >
+      </p>
+      <div class="controls">
+        <button id="lang" type="button" aria-label="Skift sprog / switch language">
+          <span class="en">Dansk</span><span class="da">English</span>
+        </button>
+        <a class="play" href="/spil/">
+          <span class="en">Play the time machine →</span>
+          <span class="da">Spil tidsmaskinen →</span>
+        </a>
+        <label class="filter">
+          <span class="en">Theme</span><span class="da">Tema</span>
+          <select id="theme-filter">
+            <option value="" data-en="All themes" data-da="Alle temaer">All themes</option>
+            {
+              atlas.themes.map((t) => (
+                <option value={t.id} data-en={t.name.en} data-da={t.name.da}>
+                  {t.name.en}
+                </option>
+              ))
+            }
+          </select>
+        </label>
+      </div>
+    </header>
+
+    <div class="plate-scroll">
+      <div class="plate" style={`--h:${H_PACKED}px; --cols:${atlas.columns.length}`}>
+        <div class="axis">
+          {
+            atlas.eras.map((era) => (
+              <div class="era" style={`top:${y(era.from)}px; height:${y(era.to) - y(era.from)}px`}>
+                <b>{era.from}</b>
+                <span class="en">{era.name.en}</span>
+                <span class="da">{era.name.da}</span>
+                {/* The scale is not uniform — the reader must see the span a
+                    band covers, not infer it from distance. */}
+                <i class="rate">
+                  <span class="en">{era.to - era.from} yr</span>
+                  <span class="da">{era.to - era.from} år</span>
+                </i>
+              </div>
+            ))
+          }
+        </div>
+
+        <div class="columns">
+          {
+            atlas.columns.map((c) => (
+              <div class="colhead">
+                <span class="en">{c.name.en}</span>
+                <span class="da">{c.name.da}</span>
+              </div>
+            ))
+          }
+        </div>
+
+        <div class="field">
+          {
+            events.map((e) => {
+              const t = themeOf.get(e.theme)!;
+              const col = colIndex.get(columnOf(e))!;
+              const { top, offset } = layout.get(e.id)!;
+              const span = e.endYear ? y(e.endYear) - y(e.year) : 0;
+              return (
+                <article
+                  class="ev"
+                  data-theme={e.theme}
+                  data-id={e.id}
+                  style={`top:${top}px; --col:${col}; --span:${span}px; --off:${offset}px; --c:${t.color}; --card:${cardHeight(e)}px; --lines:${titleLines(e)}`}
+                >
+                  {offset > 2 && <i class="leader" aria-hidden="true" />}
+                  {span > 0 && <i class="span" aria-hidden="true" />}
+                  <button type="button" class={`marker c-${e.confidence}`}>
+                    <span class="yr">
+                      {/* "c." and "ca." are the English and Danish conventions
+                          for an uncertain date — rule 5 is reader-visible in
+                          whichever language the reader is actually in. */}
+                      {e.yearApproximate && <span class="en">c. </span>}
+                      {e.yearApproximate && <span class="da">ca. </span>}
+                      {e.year}
+                      {e.endYear && `–${e.endYear}`}
+                    </span>
+                    <span class="ttl en">{e.title.en}</span>
+                    <span class="ttl da">{e.title.da}</span>
+                    {e.confidence === "contested" && <em class="flag">2</em>}
+                    {e.confidence === "legendary" && <em class="flag">?</em>}
+                  </button>
+                  <template>
+                    <h2>
+                      <span class="en">{e.title.en}</span>
+                      <span class="da">{e.title.da}</span>
+                    </h2>
+                    <p class="meta">
+                      <span class="chip" style={`--c:${t.color}`}>
+                        <span class="en">{t.name.en}</span>
+                        <span class="da">{t.name.da}</span>
+                      </span>
+                      <span class={`conf c-${e.confidence}`}>
+                        <span class="en">{CONFIDENCE[e.confidence].en}</span>
+                        <span class="da">{CONFIDENCE[e.confidence].da}</span>
+                      </span>
+                      {e.place && <span class="place">{e.place}</span>}
+                      {isProvisional(e) && (
+                        <span class="prov">
+                          <span class="en">{UI.provisional.en}</span>
+                          <span class="da">{UI.provisional.da}</span>
+                        </span>
+                      )}
+                    </p>
+                    <p class="en">{e.summary.en}</p>
+                    <p class="da">{e.summary.da}</p>
+                    {e.detail && (
+                      <>
+                        <p class="en detail">{e.detail.en}</p>
+                        <p class="da detail">{e.detail.da}</p>
+                      </>
+                    )}
+                    {e.readings && (
+                      <div class="readings">
+                        {e.readings.map((r) => (
+                          <blockquote>
+                            <h3>
+                              <span class="en">{r.side.en}</span>
+                              <span class="da">{r.side.da}</span>
+                            </h3>
+                            <p class="en">{r.text.en}</p>
+                            <p class="da">{r.text.da}</p>
+                            <cite>{r.source}</cite>
+                          </blockquote>
+                        ))}
+                      </div>
+                    )}
+                    {e.figures && (
+                      <dl class="figures">
+                        {e.figures.map((f) => (
+                          <>
+                            <dt>
+                              <span class="en">{f.label.en}</span>
+                              <span class="da">{f.label.da}</span>
+                            </dt>
+                            <dd>
+                              <span class="en">{f.value.en}</span>
+                              <span class="da">{f.value.da}</span>
+                              {f.basis && (
+                                <small>
+                                  <span class="en">{f.basis.en}</span>
+                                  <span class="da">{f.basis.da}</span>
+                                </small>
+                              )}
+                              <cite>{f.source}</cite>
+                            </dd>
+                          </>
+                        ))}
+                      </dl>
+                    )}
+                    <footer>
+                      <h3>
+                        <span class="en">Sources</span><span class="da">Kilder</span>
+                      </h3>
+                      <ul>
+                        {e.sources.map((s) => (
+                          <li>
+                            {s.url ? (
+                              <a href={s.url} target="_blank" rel="noopener">
+                                {s.label}
+                              </a>
+                            ) : (
+                              s.label
+                            )}
+                            {s.unverified && (
+                              <b class="unver">
+                                <span class="en">{UI.unverified.en}</span>
+                                <span class="da">{UI.unverified.da}</span>
+                              </b>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                      {linked.has(e.id) && (
+                        <p class="links">
+                          {atlas.links
+                            .filter((l) => l.from === e.id || l.to === e.id)
+                            .map((l) => {
+                              const other = byId.get(l.from === e.id ? l.to : l.from);
+                              return (
+                                <span class="rel">
+                                  <span class="en">
+                                    {l.from === e.id ? "→ " : "← "}
+                                    {l.relation.en} <b>{other?.title.en ?? l.to}</b>
+                                  </span>
+                                  <span class="da">
+                                    {l.from === e.id ? "→ " : "← "}
+                                    {l.relation.da} <b>{other?.title.da ?? l.to}</b>
+                                  </span>
+                                </span>
+                              );
+                            })}
+                        </p>
+                      )}
+                    </footer>
+                  </template>
+                </article>
+              );
+            })
+          }
+        </div>
+      </div>
+    </div>
+
+    <dialog id="panel">
+      <form method="dialog">
+        <button aria-label={`${UI.close.da} / ${UI.close.en}`}>×</button>
+      </form>
+      <div id="panel-body"></div>
+    </dialog>
+
+    <script>
+      const body = document.body;
+
+      document.getElementById("lang")!.addEventListener("click", () => {
+        const lang = body.dataset.lang === "en" ? "da" : "en";
+        body.dataset.lang = lang;
+        document.documentElement.lang = lang;
+        // <option> can't hold per-language spans, so swap its text directly.
+        document
+          .querySelectorAll<HTMLOptionElement>("#theme-filter option")
+          .forEach((o) => (o.textContent = o.dataset[lang]!));
+      });
+
+      // ponytail: detail HTML is pre-rendered into a <template> per event and
+      // cloned on open. No client-side data layer, no serialisation step.
+      const panel = document.getElementById("panel") as HTMLDialogElement;
+      const panelBody = document.getElementById("panel-body")!;
+
+      document.querySelectorAll<HTMLElement>(".ev").forEach((ev) => {
+        ev.querySelector("button")!.addEventListener("click", () => {
+          const tpl = ev.querySelector("template")!;
+          panelBody.replaceChildren(tpl.content.cloneNode(true));
+          panel.showModal();
+        });
+      });
+
+      // Theme filter dims rather than removes: the shape of the plate — where
+      // the record is thick and where it is thin — is itself information.
+      document.getElementById("theme-filter")!.addEventListener("change", (e) => {
+        const v = (e.target as HTMLSelectElement).value;
+        body.classList.toggle("filtering", !!v);
+        document
+          .querySelectorAll<HTMLElement>(".ev")
+          .forEach((el) => el.classList.toggle("dim", !!v && el.dataset.theme !== v));
+      });
+    </script>
+
+    <style is:global>
+      :root {
+        --bg: #f4f1ea;
+        --ink: #241f1a;
+        --rule: #cfc7b8;
+        --paper: #fffdf8;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font: 15px/1.5 ui-serif, Georgia, serif;
+      }
+      body[data-lang="en"] .da,
+      body[data-lang="da"] .en {
+        display: none;
+      }
+
+      header {
+        padding: 2rem clamp(1rem, 4vw, 3rem) 1rem;
+        max-width: 68ch;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(1.8rem, 5vw, 2.6rem);
+        letter-spacing: -0.02em;
+      }
+      h1 small {
+        font-size: 0.45em;
+        letter-spacing: 0.12em;
+        color: #7a7266;
+        margin-left: 0.6em;
+      }
+      .lede {
+        color: #554e45;
+        margin: 0.5rem 0 1rem;
+      }
+      .controls {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        flex-wrap: wrap;
+        font: 500 13px/1 ui-sans-serif, system-ui, sans-serif;
+      }
+      .controls button,
+      .controls select {
+        font: inherit;
+        padding: 0.5rem 0.8rem;
+        border: 1px solid var(--rule);
+        background: var(--paper);
+        color: inherit;
+        border-radius: 3px;
+        cursor: pointer;
+      }
+      .play {
+        font: inherit;
+        padding: 0.5rem 0.8rem;
+        border: 1px solid var(--ink);
+        background: var(--ink);
+        color: var(--paper);
+        border-radius: 3px;
+        text-decoration: none;
+      }
+      .filter {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #7a7266;
+      }
+
+      .plate-scroll {
+        overflow-x: auto;
+        padding: 0 clamp(1rem, 4vw, 3rem) 4rem;
+      }
+      .plate {
+        position: relative;
+        min-width: 1330px;
+        padding-left: 96px;
+      }
+      .columns {
+        display: grid;
+        grid-template-columns: repeat(var(--cols), 1fr);
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        background: var(--bg);
+        border-bottom: 1px solid var(--ink);
+        padding: 0.6rem 0;
+      }
+      .colhead {
+        font: 600 10px/1.3 ui-sans-serif, system-ui, sans-serif;
+        letter-spacing: 0.14em;
+        padding: 0 0.5rem;
+        color: #6b6358;
+      }
+      .field {
+        position: relative;
+        height: var(--h);
+      }
+      /* Card pushed below its true year — mark the real position. */
+      .leader {
+        position: absolute;
+        left: -5px;
+        top: calc(0px - var(--off));
+        height: var(--off);
+        width: 1px;
+        background: linear-gradient(var(--c), transparent);
+        opacity: 0.45;
+      }
+      .leader::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -2px;
+        width: 5px;
+        height: 1px;
+        background: var(--c);
+      }
+      .axis {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 96px;
+        height: var(--h);
+        margin-top: 2.6rem;
+      }
+      .era {
+        position: absolute;
+        left: 0;
+        width: 88px;
+        border-top: 1px solid var(--ink);
+        padding-top: 0.3rem;
+        font: 11px/1.3 ui-sans-serif, system-ui, sans-serif;
+        color: #7a7266;
+      }
+      .rate {
+        display: block;
+        font-size: 10px;
+        font-style: normal;
+        color: #a09789;
+        margin-top: 0.15rem;
+      }
+      .era b {
+        display: block;
+        font-size: 13px;
+        color: var(--ink);
+      }
+
+      .ev {
+        position: absolute;
+        left: calc(var(--col) * (100% / var(--cols)));
+        width: calc(100% / var(--cols));
+        padding-right: 0.75rem;
+        transition: opacity 0.15s;
+      }
+      .ev.dim {
+        opacity: 0.16;
+      }
+      .span {
+        position: absolute;
+        left: -5px;
+        top: 4px;
+        width: 2px;
+        height: var(--span);
+        background: var(--c);
+        opacity: 0.5;
+      }
+      .marker {
+        display: block;
+        width: 100%;
+        /* Height the packer assumed — enforced, not hoped for. */
+        height: var(--card);
+        overflow: hidden;
+        text-align: left;
+        background: var(--paper);
+        border: 1px solid var(--rule);
+        border-left: 3px solid var(--c);
+        border-radius: 2px;
+        padding: 0.35rem 0.5rem;
+        font: inherit;
+        color: inherit;
+        cursor: pointer;
+      }
+      .marker:hover,
+      .marker:focus-visible {
+        border-color: var(--c);
+        box-shadow: 0 2px 10px rgb(0 0 0 / 0.09);
+        position: relative;
+        z-index: 2;
+      }
+      .yr {
+        display: block;
+        font: 600 10px/1 ui-sans-serif, system-ui, sans-serif;
+        letter-spacing: 0.06em;
+        color: #8a8276;
+      }
+      .ttl {
+        font-size: 13px;
+        line-height: 17px;
+        margin-top: 0.15rem;
+        /* Clamp to the line count the packer budgeted. Full title is in the
+           panel, so a clipped card loses nothing the reader cannot reach. */
+        display: -webkit-box;
+        -webkit-line-clamp: var(--lines);
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      body[data-lang="en"] .ttl.da,
+      body[data-lang="da"] .ttl.en {
+        display: none;
+      }
+      /* Confidence is a visible mark, never a hidden field. */
+      .c-contested {
+        border-style: dashed;
+      }
+      .c-legendary {
+        border-style: dotted;
+        font-style: italic;
+      }
+      .flag {
+        float: right;
+        font: 600 9px/1.4 ui-sans-serif, system-ui, sans-serif;
+        border: 1px solid currentColor;
+        border-radius: 50%;
+        width: 14px;
+        text-align: center;
+        color: #8a8276;
+        font-style: normal;
+      }
+
+      dialog {
+        max-width: 62ch;
+        width: calc(100vw - 2rem);
+        border: 1px solid var(--ink);
+        background: var(--paper);
+        color: var(--ink);
+        padding: 1.6rem;
+        border-radius: 3px;
+      }
+      dialog::backdrop {
+        background: rgb(30 26 22 / 0.45);
+      }
+      dialog > form {
+        float: right;
+      }
+      dialog > form button {
+        border: 0;
+        background: none;
+        font-size: 1.6rem;
+        line-height: 1;
+        cursor: pointer;
+        color: #8a8276;
+      }
+      dialog h2 {
+        margin: 0 0 0.5rem;
+        font-size: 1.5rem;
+      }
+      .meta {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        font: 600 10px/1 ui-sans-serif, system-ui, sans-serif;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        margin: 0 0 1rem;
+      }
+      .meta > * {
+        padding: 0.3rem 0.5rem;
+        border: 1px solid var(--rule);
+        border-radius: 2px;
+        color: #6b6358;
+      }
+      .chip {
+        border-left: 3px solid var(--c);
+      }
+      .prov {
+        border-color: #b5442d;
+        color: #b5442d;
+      }
+      .readings blockquote {
+        margin: 0 0 0.8rem;
+        padding-left: 0.9rem;
+        border-left: 2px solid var(--rule);
+      }
+      .readings h3 {
+        margin: 0 0 0.2rem;
+        font: 600 11px/1.2 ui-sans-serif, system-ui, sans-serif;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #6b6358;
+      }
+      .figures {
+        margin: 1rem 0;
+        border-top: 1px solid var(--rule);
+        padding-top: 0.8rem;
+      }
+      .figures dt {
+        font: 600 11px/1.2 ui-sans-serif, system-ui, sans-serif;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #6b6358;
+      }
+      .figures dd {
+        margin: 0.1rem 0 0.7rem;
+        font-size: 1.05rem;
+      }
+      .figures dd small {
+        display: block;
+        font-size: 0.75rem;
+        color: #7a7266;
+      }
+      cite {
+        display: block;
+        font: italic 11px/1.4 ui-serif, Georgia, serif;
+        color: #8a8276;
+        margin-top: 0.15rem;
+      }
+      dialog footer {
+        border-top: 1px solid var(--rule);
+        margin-top: 1rem;
+        padding-top: 0.8rem;
+      }
+      dialog footer h3 {
+        font: 600 10px/1 ui-sans-serif, system-ui, sans-serif;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #6b6358;
+        margin: 0 0 0.5rem;
+      }
+      dialog footer ul {
+        margin: 0;
+        padding-left: 1.1rem;
+        font-size: 12px;
+      }
+      dialog footer a {
+        color: #3d5a80;
+      }
+      .unver {
+        color: #b5442d;
+        margin-left: 0.4rem;
+        font-size: 10px;
+      }
+      .rel {
+        display: block;
+        font-size: 11px;
+        color: #7a7266;
+        margin-top: 0.3rem;
+      }
+    </style>
+  </body>
+</html>

@@ -1,0 +1,459 @@
+---
+import { atlas } from "../data/atlas.ts";
+import type { AtlasEvent } from "../data/schema.ts";
+
+// TIDSMASKINEN — the atlas as a game board.
+//
+// The verb is "reason about when and what kind of thing this was", which is the
+// learning objective itself rather than a proxy for it. Every event added to the
+// atlas becomes a round automatically; there is no separate content to author.
+
+const themeOf = new Map(atlas.themes.map((t) => [t.id, t]));
+const columnOf = (e: AtlasEvent) => themeOf.get(e.theme)!.column;
+const eraOf = (e: AtlasEvent) => atlas.eras.find((r) => e.year >= r.from && e.year < r.to) ?? atlas.eras.at(-1)!;
+
+// The clue must not contain its own answer. Summaries are full of explicit
+// dates ("Signed 5 June 1849..."), so years are redacted out of the prompt text.
+// ponytail: a year is any bare 600–2030 that is not part of a longer number
+// (so "336,000" and "15%" survive). Tightened only if a leak shows up in play.
+const YEAR = /\b(?:1\d{3}|20[0-3]\d|[6-9]\d{2})\b/g;
+const redact = (s: string) =>
+  s.replace(YEAR, (m, i, str) => {
+    const before = str[i - 1];
+    const after = str[i + m.length];
+    if (before === "," || before === "." || after === ",") return m; // part of a bigger number
+    return "————";
+  });
+
+const rounds = atlas.events.map((e) => ({
+  id: e.id,
+  year: e.year,
+  col: columnOf(e),
+  era: eraOf(e).id,
+  theme: e.theme,
+  color: themeOf.get(e.theme)!.color,
+  title: e.title,
+  clue: { en: redact(e.summary.en), da: redact(e.summary.da) },
+  // One figure makes a good second clue — redacted the same way.
+  hint: e.figures?.[0]
+    ? { en: redact(e.figures[0].value.en), da: redact(e.figures[0].value.da) }
+    : null,
+  url: e.sources[0]?.url ?? null
+}));
+
+const board = { columns: atlas.columns, eras: atlas.eras };
+---
+
+<html lang="da">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tidsmaskinen · Atlas Danmark</title>
+    <meta
+      name="description"
+      content="Place the event on the plate: which domain, which era. A guessing game built on the Atlas Danmark dataset."
+    />
+  </head>
+  <body data-lang="da">
+    <header>
+      <h1>
+        <span class="en">The Time Machine</span><span class="da">Tidsmaskinen</span>
+      </h1>
+      <p class="lede">
+        <span class="en"
+          >The machine is broken and the dates are gone. Read the fragment, then place it on the
+          plate — which domain, and which age.</span
+        >
+        <span class="da"
+          >Maskinen er i stykker, og årstallene er væk. Læs fragmentet, og placér det på pladen —
+          hvilket område, og hvilken tid.</span
+        >
+      </p>
+      <div class="bar">
+        <button id="lang" type="button"><span class="en">Dansk</span><span class="da">English</span></button>
+        <span class="score">
+          <span class="en">Round</span><span class="da">Runde</span>
+          <b id="round">1</b>/<b id="total">10</b>
+        </span>
+        <span class="score">
+          <span class="en">Score</span><span class="da">Point</span>
+          <b id="score">0</b>
+        </span>
+        <a href="/"><span class="en">← Atlas</span><span class="da">← Atlas</span></a>
+      </div>
+    </header>
+
+    <main>
+      <section id="card">
+        <p class="clue" id="clue"></p>
+        <p class="hint" id="hint"></p>
+      </section>
+
+      <div class="grid-wrap">
+        <table id="board">
+          <thead>
+            <tr>
+              <th></th>
+              {
+                board.columns.map((c) => (
+                  <th>
+                    <span class="en">{c.name.en}</span>
+                    <span class="da">{c.name.da}</span>
+                  </th>
+                ))
+              }
+            </tr>
+          </thead>
+          <tbody>
+            {
+              board.eras.map((era) => (
+                <tr>
+                  <th class="rowhead">
+                    <span class="en">{era.name.en}</span>
+                    <span class="da">{era.name.da}</span>
+                    <i>
+                      {era.from}–{era.to}
+                    </i>
+                  </th>
+                  {board.columns.map((c) => (
+                    <td>
+                      <button type="button" data-col={c.id} data-era={era.id} aria-label={`${c.name.da} · ${era.name.da}`} />
+                    </td>
+                  ))}
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <section id="result" hidden>
+        <h2 id="r-title"></h2>
+        <p id="r-verdict"></p>
+        <p id="r-detail"></p>
+        <a id="r-source" target="_blank" rel="noopener">
+          <span class="en">Read the source</span><span class="da">Læs kilden</span>
+        </a>
+        <button id="next" type="button">
+          <span class="en">Next →</span><span class="da">Næste →</span>
+        </button>
+      </section>
+    </main>
+
+    <script define:vars={{ rounds, eras: board.eras }}>
+      const body = document.body;
+      const $ = (id) => document.getElementById(id);
+      const lang = () => body.dataset.lang;
+
+      $("lang").addEventListener("click", () => {
+        body.dataset.lang = lang() === "en" ? "da" : "en";
+        document.documentElement.lang = body.dataset.lang;
+        if (current) paintCard();
+      });
+
+      const TOTAL = 10;
+      let deck = [];
+      let current = null;
+      let n = 0;
+      let score = 0;
+      let answered = false;
+
+      // Fisher–Yates. A fresh shuffle per session, so the same ten never repeat.
+      function shuffle(a) {
+        for (let i = a.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+      }
+
+      function paintCard() {
+        $("clue").textContent = current.clue[lang()];
+        $("hint").textContent = current.hint ? current.hint[lang()] : "";
+      }
+
+      function deal() {
+        if (n >= TOTAL) return finish();
+        current = deck[n];
+        answered = false;
+        n++;
+        $("round").textContent = n;
+        paintCard();
+        $("result").hidden = true;
+        document.querySelectorAll("#board button").forEach((b) => {
+          b.className = "";
+          b.disabled = false;
+          b.textContent = "";
+        });
+      }
+
+      function guess(col, era) {
+        if (answered) return;
+        answered = true;
+
+        const rightCol = col === current.col;
+        const rightEra = era === current.era;
+        // Distance in eras, so a near miss reads as a near miss.
+        const gi = eras.findIndex((e) => e.id === era);
+        const ai = eras.findIndex((e) => e.id === current.era);
+        const off = Math.abs(gi - ai);
+
+        let points = 0;
+        if (rightCol && rightEra) points = 100;
+        else if (rightCol) points = Math.max(0, 50 - off * 15);
+        else if (rightEra) points = 40;
+        score += points;
+        $("score").textContent = score;
+
+        document.querySelectorAll("#board button").forEach((b) => {
+          b.disabled = true;
+          const isAnswer = b.dataset.col === current.col && b.dataset.era === current.era;
+          const isGuess = b.dataset.col === col && b.dataset.era === era;
+          if (isAnswer) b.className = "answer";
+          if (isGuess && !isAnswer) b.className = "wrong";
+        });
+
+        const t = lang() === "en" ? current.title.en : current.title.da;
+        $("r-title").textContent = `${current.year} — ${t}`;
+        const verdicts = {
+          en: points === 100 ? "Exactly right." : points > 0 ? "Close." : "Not this time.",
+          da: points === 100 ? "Helt rigtigt." : points > 0 ? "Tæt på." : "Ikke denne gang."
+        };
+        $("r-verdict").textContent = `${verdicts[lang()]} +${points}`;
+        $("r-detail").textContent =
+          lang() === "en"
+            ? rightEra
+              ? "Right age."
+              : `You were ${off} age${off > 1 ? "s" : ""} off.`
+            : rightEra
+              ? "Rigtig tid."
+              : `Du var ${off} tid${off > 1 ? "er" : ""} ved siden af.`;
+        const src = $("r-source");
+        if (current.url) {
+          src.href = current.url;
+          src.hidden = false;
+        } else src.hidden = true;
+        $("result").hidden = false;
+        $("next").focus();
+      }
+
+      function finish() {
+        $("card").innerHTML = "";
+        $("clue")?.remove();
+        const done = lang() === "en"
+          ? `Done — ${score} of ${TOTAL * 100} points.`
+          : `Færdig — ${score} af ${TOTAL * 100} point.`;
+        $("r-title").textContent = done;
+        $("r-verdict").textContent = "";
+        $("r-detail").textContent = "";
+        $("r-source").hidden = true;
+        $("next").textContent = lang() === "en" ? "Play again" : "Spil igen";
+        $("next").onclick = () => location.reload();
+        $("result").hidden = false;
+      }
+
+      document.querySelectorAll("#board button").forEach((b) =>
+        b.addEventListener("click", () => guess(b.dataset.col, b.dataset.era))
+      );
+      $("next").addEventListener("click", () => deal());
+
+      deck = shuffle([...rounds]).slice(0, TOTAL);
+      $("total").textContent = TOTAL;
+      deal();
+    </script>
+
+    <style is:global>
+      :root {
+        --bg: #f4f1ea;
+        --ink: #241f1a;
+        --rule: #cfc7b8;
+        --paper: #fffdf8;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font: 16px/1.55 ui-serif, Georgia, serif;
+      }
+      body[data-lang="en"] .da,
+      body[data-lang="da"] .en {
+        display: none;
+      }
+      header,
+      main {
+        max-width: 62rem;
+        margin: 0 auto;
+        padding: 0 1.5rem;
+      }
+      header {
+        padding-top: 2rem;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(1.8rem, 5vw, 2.6rem);
+        letter-spacing: -0.02em;
+      }
+      .lede {
+        color: #554e45;
+        max-width: 48ch;
+      }
+      .bar {
+        display: flex;
+        gap: 1.25rem;
+        align-items: center;
+        flex-wrap: wrap;
+        font: 500 13px/1 ui-sans-serif, system-ui, sans-serif;
+        border-top: 1px solid var(--rule);
+        border-bottom: 1px solid var(--rule);
+        padding: 0.75rem 0;
+        margin-top: 1rem;
+      }
+      .bar button,
+      .bar a {
+        font: inherit;
+        padding: 0.45rem 0.7rem;
+        border: 1px solid var(--rule);
+        background: var(--paper);
+        color: inherit;
+        border-radius: 3px;
+        cursor: pointer;
+        text-decoration: none;
+      }
+      .score {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 0.4rem;
+        text-transform: uppercase;
+        letter-spacing: 0.09em;
+        color: #7a7266;
+      }
+      .score b {
+        color: var(--ink);
+        font-size: 15px;
+      }
+
+      #card {
+        background: var(--paper);
+        border: 1px solid var(--rule);
+        border-left: 4px solid #8a8276;
+        border-radius: 3px;
+        padding: 1.5rem;
+        margin: 1.75rem 0;
+        min-height: 7.5rem;
+      }
+      .clue {
+        margin: 0;
+        font-size: 1.15rem;
+      }
+      .hint {
+        margin: 0.75rem 0 0;
+        font: italic 0.95rem/1.5 ui-serif, Georgia, serif;
+        color: #6b6358;
+      }
+
+      .grid-wrap {
+        overflow-x: auto;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        min-width: 46rem;
+        /* Even cells: a wide "KRIG" target must not be an easier click than a
+           narrow one, or the board itself nudges the guess. */
+        table-layout: fixed;
+      }
+      thead th:first-child,
+      .rowhead {
+        width: 11rem;
+      }
+      thead th {
+        font: 600 10px/1.3 ui-sans-serif, system-ui, sans-serif;
+        letter-spacing: 0.12em;
+        color: #6b6358;
+        padding: 0 0.3rem 0.5rem;
+        vertical-align: bottom;
+      }
+      .rowhead {
+        text-align: right;
+        padding-right: 0.7rem;
+        font: 500 12px/1.3 ui-sans-serif, system-ui, sans-serif;
+        color: #554e45;
+        white-space: nowrap;
+      }
+      .rowhead i {
+        display: block;
+        font: 10px/1.3 ui-sans-serif, system-ui, sans-serif;
+        color: #a09789;
+        font-style: normal;
+      }
+      td {
+        padding: 2px;
+      }
+      td button {
+        display: block;
+        width: 100%;
+        height: 2.6rem;
+        border: 1px solid var(--rule);
+        background: var(--paper);
+        border-radius: 2px;
+        cursor: pointer;
+        transition: background 0.12s;
+      }
+      td button:hover:not(:disabled) {
+        background: #ece6d8;
+        border-color: #8a8276;
+      }
+      td button:disabled {
+        cursor: default;
+      }
+      td button.answer {
+        background: #2d6a4f;
+        border-color: #2d6a4f;
+      }
+      td button.wrong {
+        background: #b5442d;
+        border-color: #b5442d;
+      }
+
+      #result {
+        border-top: 1px solid var(--ink);
+        margin: 1.5rem 0 4rem;
+        padding-top: 1rem;
+      }
+      #result h2 {
+        margin: 0 0 0.3rem;
+        font-size: 1.4rem;
+      }
+      #r-verdict {
+        margin: 0;
+        font: 600 13px/1.4 ui-sans-serif, system-ui, sans-serif;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #6b6358;
+      }
+      #r-detail {
+        margin: 0.2rem 0 0.8rem;
+        color: #554e45;
+      }
+      #r-source {
+        font-size: 13px;
+        color: #3d5a80;
+      }
+      #next {
+        display: block;
+        margin-top: 1rem;
+        font: 600 14px/1 ui-sans-serif, system-ui, sans-serif;
+        padding: 0.7rem 1.2rem;
+        border: 1px solid var(--ink);
+        background: var(--ink);
+        color: var(--paper);
+        border-radius: 3px;
+        cursor: pointer;
+      }
+    </style>
+  </body>
+</html>
