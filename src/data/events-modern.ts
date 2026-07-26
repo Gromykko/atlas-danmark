@@ -109,7 +109,9 @@ export const modernEvents: AtlasEvent[] = [
     ],
     figures: [
       { label: { en: "Price", da: "Pris" }, value: { en: "c. 100m kr / 25m dollars · transferred 31 March 1917", da: "ca. 100 mio. kr. / 25 mio. dollars · overdraget 31. marts 1917" }, source: "danmarkshistorien.lex.dk, 'De Vestindiske Øer'" },
-      { label: { en: "Enslaved population, 1797", da: "Slavegjorte, 1797" }, value: { en: "32,213 enslaved / 4,480 free", da: "32.213 slavegjorte / 4.480 frie" }, source: "danmarkshistorien.lex.dk, 'De Vestindiske Øer'" }
+      { label: { en: "Enslaved population, 1797", da: "Slavegjorte, 1797" }, value: { en: "32,213 enslaved / 4,480 free", da: "32.213 slavegjorte / 4.480 frie" },
+        basis: { en: "The three islands — St. Croix, St. Thomas, St. John — counted as property in Danish colonial registers, which is what makes the figure exist at all. It is not comparable with the Danish population series: these people were enumerated as holdings, not as inhabitants.", da: "De tre øer — Sankt Croix, Sankt Thomas og Sankt Jan — opgjort som ejendom i danske koloniregnskaber, hvilket er grunden til, at tallet overhovedet findes. Det kan ikke sammenlignes med den danske befolkningsrække: disse mennesker blev talt som besiddelser, ikke som indbyggere." },
+        source: "danmarkshistorien.lex.dk, 'De Vestindiske Øer'" }
     ],
     sources: [{ label: "danmarkshistorien.lex.dk (Aarhus University) — De Vestindiske Øer, 1672-1917", url: "https://danmarkshistorien.lex.dk/De_Vestindiske_%C3%98er,_1672-1917" }]
   },
@@ -624,7 +626,9 @@ export const modernEvents: AtlasEvent[] = [
       { label: { en: "Population", da: "Folketal" }, value: { en: "798,000 (1769) → 929,000 (1801) → 2,450,000 (1901)", da: "798.000 (1769) → 929.000 (1801) → 2.450.000 (1901)" },
         basis: { en: "Figures up to 1921 count the territory Denmark held after the Peace of Vienna 1864; from 1921 they include reunified South Jutland. The series is NOT one continuous territory.", da: "Tal frem til 1921 gælder det område, Danmark havde efter Freden i Wien 1864; fra 1921 indgår det genforenede Sønderjylland. Rækken dækker IKKE ét og samme område." },
         source: "danmarkshistorien.lex.dk, 'Danmarks befolkningsudvikling 1769-2021'" },
-      { label: { en: "Today", da: "I dag" }, value: { en: "5,840,045 (2021)", da: "5.840.045 (2021)" }, source: "danmarkshistorien.lex.dk, 'Danmarks befolkningsudvikling 1769-2021'" }
+      { label: { en: "Today", da: "I dag" }, value: { en: "5,840,045 (2021)", da: "5.840.045 (2021)" },
+        basis: { en: "Present borders — Denmark proper including South Jutland, excluding the Faroes and Greenland. This is NOT the territory the 1769–1901 series above was measured on and the two must not be read as one curve.", da: "Nuværende grænser — Danmark inkl. Sønderjylland, ekskl. Færøerne og Grønland. Det er IKKE det område, rækken 1769-1901 ovenfor er målt på, og de to må ikke læses som én kurve." },
+        source: "danmarkshistorien.lex.dk, 'Danmarks befolkningsudvikling 1769-2021'" }
     ],
     sources: [{ label: "danmarkshistorien.lex.dk (Aarhus University) — Danmarks befolkningsudvikling 1769-2021", url: "https://danmarkshistorien.lex.dk/Danmarks_befolkningsudvikling_1769-2021" }]
   },

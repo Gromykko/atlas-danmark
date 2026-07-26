@@ -1,7 +1,10 @@
 ---
+import Base from "../layouts/Base.astro";
+import "../styles/plate.css";
 import { atlas } from "../data/atlas.ts";
-import { isProvisional, type AtlasEvent, type Confidence, type Text } from "../data/schema.ts";
-import { pack, timeScale } from "../data/layout.ts";
+import { isProvisional, type Confidence, type Text } from "../data/schema.ts";
+import { audit, columnOf, plate, themeOf } from "../data/derived.ts";
+import { cardHeight, titleLines } from "../data/layout.ts";
 
 // Reader-visible chrome. The dataset is bilingual by type; these strings are
 // the UI's own and were the only place English leaked into the Danish view.
@@ -12,144 +15,179 @@ const CONFIDENCE: Record<Confidence, Text> = {
   legendary: { en: "legendary", da: "sagnstof" }
 };
 const UI = {
-  provisional: {
-    en: "provisional — Wikipedia only",
-    da: "foreløbig — kun Wikipedia"
-  },
-  unverified: { en: "unverified", da: "ikke verificeret" },
-  close: { en: "Close", da: "Luk" }
+  provisional: { en: "provisional — Wikipedia only", da: "foreløbig — kun Wikipedia" },
+  unverified: { en: "unverified", da: "ikke verificeret" }
 };
 
 // The plate: time runs down, themes run across in columns. One screen-sized
-// object you read like a map, not a list you scroll through. The vertical
-// scale is piecewise, not linear — see timeScale() for why.
+// object you read like a map, not a list you scroll through. Geometry comes
+// from plate() — the same function the build gate proves has no overlaps.
 const { minYear, maxYear } = atlas.meta;
-
-const themeOf = new Map(atlas.themes.map((t) => [t.id, t]));
+const { events, scale, placed, height } = plate();
 const colIndex = new Map(atlas.columns.map((c, i) => [c.id, i]));
-const columnOf = (e: AtlasEvent) => themeOf.get(e.theme)!.column;
-
-const events = [...atlas.events].sort((a, b) => a.year - b.year);
 const linked = new Set(atlas.links.flatMap((l) => [l.from, l.to]));
 const byId = new Map(events.map((e) => [e.id, e]));
+const a = audit();
 
-// Card height is computed here and then ENFORCED in CSS (fixed height + line
-// clamp), rather than predicted and hoped for. An earlier version estimated it
-// from character count and let the browser lay out freely; the two disagreed
-// and cards overlapped in three places. If the packer and the renderer do not
-// agree on how tall a card is, the packer's guarantee is worthless.
-const CHARS_PER_LINE = 22; // at the 1330px min-width floor set in CSS
-const LINE = 17;
-const GAP = 6;
-const CHROME = 25; // padding + border + year line
-
-const titleLines = (e: AtlasEvent) =>
-  Math.min(3, Math.max(1, Math.ceil(Math.max(e.title.en.length, e.title.da.length) / CHARS_PER_LINE)));
-const cardHeight = (e: AtlasEvent) => CHROME + titleLines(e) * LINE;
-
-// Give each decade the room its own densest column needs, then place cards on
-// the resulting scale. Without this the 1940s get a fraction of the space their
-// record requires and cards end up pushed a century below their date.
-const DECADE = 10;
-const decades = [];
-for (let d = Math.floor(minYear / DECADE) * DECADE; d < maxYear; d += DECADE)
-  decades.push({ id: `d${d}`, from: d, to: d + DECADE });
-
-const needs = new Map<string, number>();
-for (const d of decades) {
-  const stacks = new Map<string, number>();
-  for (const e of events)
-    if (e.year >= d.from && e.year < d.to) {
-      const c = columnOf(e);
-      stacks.set(c, (stacks.get(c) ?? 0) + cardHeight(e) + GAP);
-    }
-  needs.set(d.id, Math.max(0, ...stacks.values()));
-}
-const scale = timeScale(decades, needs);
-const y = scale.y;
-
-// Cards sit at their year, but a dense decade can still collide. Pack each
-// column downward so a card never starts above the previous card's bottom.
-// Displaced cards get a leader line back to the true year — a card silently
-// sitting below its date is exactly the quiet lie this atlas exists to avoid.
-const layout = pack(
-  events.map((e) => ({ id: e.id, col: columnOf(e), want: y(e.year), height: cardHeight(e) })),
-  GAP
-);
-const H_PACKED = Math.max(scale.total, ...[...layout.values()].map((p) => p.top)) + 60;
+// A century, measured in each band's own pixels. The axis used to print the
+// span — "360 yr" — which makes the compression *recoverable by division*
+// rather than visible. A scale bar is how every printed atlas since Ortelius
+// discloses a projection that is not uniform.
+const centuryBar = (from: number) => {
+  const b = scale.bands.find((x) => from >= x.from && from < x.to) ?? scale.bands[0];
+  return Math.round(100 * b.rate);
+};
 ---
 
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Atlas Danmark · 690–2026</title>
-    <meta
-      name="description"
-      content="A sourced historical atlas of Denmark, 690–2026. Every record cites its evidence; contested history is shown as contested."
-    />
-  </head>
-  <body data-lang="en">
-    <header>
-      <h1>
-        <span class="en">Atlas Danmark</span><span class="da">Atlas Danmark</span>
-        <small>{minYear}–{maxYear}</small>
-      </h1>
-      <p class="lede">
-        <span class="en"
-          >{events.length} sourced records. Contested history is shown with both readings — never
-          one national story quietly chosen.</span
-        >
-        <span class="da"
-          >{events.length} kildebelagte nedslag. Omstridt historie vises med begge læsninger — aldrig
-          én national fortælling valgt i stilhed.</span
-        >
-      </p>
-      <div class="controls">
-        <button id="lang" type="button" aria-label="Skift sprog / switch language">
-          <span class="en">Dansk</span><span class="da">English</span>
-        </button>
-        <a class="play" href="/spil/">
-          <span class="en">Play the time machine →</span>
-          <span class="da">Spil tidsmaskinen →</span>
-        </a>
-        <label class="filter">
-          <span class="en">Theme</span><span class="da">Tema</span>
-          <select id="theme-filter">
-            <option value="" data-en="All themes" data-da="Alle temaer">All themes</option>
+<Base
+  title="Atlas Danmark · 690–2026"
+  description="Et kildebelagt historisk atlas over Danmark, 690–2026. Hvert nedslag oplyser sit belæg, og omstridt historie vises som omstridt."
+>
+  <header>
+    <h1>
+      Atlas Danmark
+      <small>{minYear}–{maxYear}</small>
+    </h1>
+    <p class="lede">
+      <span class="en"
+        >{events.length} sourced records. Contested history is shown with both readings — never one
+        national story quietly chosen.</span
+      >
+      <span class="da"
+        >{events.length} kildebelagte nedslag. Omstridt historie vises med begge læsninger — aldrig
+        én national fortælling valgt i stilhed.</span
+      >
+    </p>
+
+    {/* The audit ran every build and was thrown away into a console. These are
+        the least flattering facts about the atlas, which is why they belong on
+        the page: a reference work that publishes its own weakest measurement is
+        making a claim the reader can check. */}
+    <p class="audit">
+      <span class="en">
+        <b>{a.wikipediaOnly}</b>{" "}records rest on Wikipedia alone · <b>{a.singleSource}</b>{" "}of{" "}
+        {a.events} rest on a single citation · <b>{a.topHostShare}%</b>{" "}of {a.urls} source URLs are{" "}
+        {a.topHost} · <b>{a.contestedOneSource}</b>{" "}of {a.contested} contested records cite one work
+        for both readings. This atlas is an index into the scholarship, not a substitute for it.
+      </span>
+      <span class="da">
+        <b>{a.wikipediaOnly}</b>{" "}nedslag hviler alene på Wikipedia · <b>{a.singleSource}</b>{" "}af{" "}
+        {a.events} hviler på én enkelt kilde · <b>{a.topHostShare}%</b>{" "}af {a.urls} kilde-URL'er er{" "}
+        {a.topHost} · <b>{a.contestedOneSource}</b>{" "}af {a.contested} omstridte nedslag henviser til ét
+        værk for begge læsninger. Dette atlas er en indgang til forskningen, ikke en erstatning for den.
+      </span>
+    </p>
+
+    <div class="controls">
+      <button data-lang-toggle type="button">
+        <span class="en">Dansk</span><span class="da">English</span>
+      </button>
+      <a class="play" href="/spil/">
+        <span class="en">Play the time machine →</span>
+        <span class="da">Spil tidsmaskinen →</span>
+      </a>
+      <label class="filter">
+        <span class="en">Show</span><span class="da">Vis</span>
+        <select id="filter">
+          <option value="" data-en="Everything" data-da="Alt">Alt</option>
+          <optgroup label="Evidence / Belæg" data-en="Evidence" data-da="Belæg">
+            <option value="conf:contested" data-en="Contested — two readings" data-da="Omstridt — to læsninger">Omstridt — to læsninger</option>
+            <option value="conf:legendary" data-en="Legendary" data-da="Sagnstof">Sagnstof</option>
+            <option value="conf:sourced" data-en="Sourced, not cross-checked" data-da="Kildebelagt, ikke efterprøvet">Kildebelagt, ikke efterprøvet</option>
+            <option value="prov:1" data-en="Provisional — Wikipedia only" data-da="Foreløbig — kun Wikipedia">Foreløbig — kun Wikipedia</option>
+          </optgroup>
+          <optgroup label="Theme / Tema" data-en="Theme" data-da="Tema">
             {
               atlas.themes.map((t) => (
-                <option value={t.id} data-en={t.name.en} data-da={t.name.da}>
-                  {t.name.en}
+                <option value={`theme:${t.id}`} data-en={t.name.en} data-da={t.name.da}>
+                  {t.name.da}
                 </option>
               ))
             }
-          </select>
-        </label>
+          </optgroup>
+        </select>
+      </label>
+      <label class="filter search">
+        <span class="en">Find</span><span class="da">Søg</span>
+        <input id="q" type="search" autocomplete="off"
+          data-en="title, place, or word" data-da="titel, sted eller ord" />
+      </label>
+      <output id="count" aria-live="polite" class="count"></output>
+    </div>
+
+    {/* An atlas without a key is not an atlas. Native <details>: correct
+        keyboard semantics, no JS, and it prints. */}
+    <details class="legend">
+      <summary>
+        <span class="en">How to read this plate</span><span class="da">Sådan læses pladen</span>
+      </summary>
+      <div class="legend-body">
+        <section>
+          <h2><span class="en">Evidence</span><span class="da">Belæg</span></h2>
+          {/* The rule down the edge of a card breaks up as the evidence thins.
+              Priestley drew uncertain dates as dotted line-ends in 1769 and
+              wrote that a solid line there would be a lie. */}
+          <ul class="key">
+            <li><i class="sw"></i><span class="en"><b>Unbroken:</b> established — uncontested in the literature</span><span class="da"><b>Ubrudt:</b> fastslået — ubestridt i litteraturen</span></li>
+            <li><i class="sw c-sourced"></i><span class="en"><b>Long dash:</b> sourced, but not independently cross-checked here</span><span class="da"><b>Lange streger:</b> kildebelagt, men ikke efterprøvet uafhængigt her</span></li>
+            <li><i class="sw c-contested"></i><span class="en"><b>Short dash:</b> specialists genuinely disagree. Both readings are given, marked <b class="g">‡</b></span><span class="da"><b>Korte streger:</b> forskerne er reelt uenige. Begge læsninger vises, markeret <b class="g">‡</b></span></li>
+            <li><i class="sw c-legendary"></i><span class="en"><b>Dotted:</b> a story the culture tells, not presented as fact, marked <b class="g">?</b></span><span class="da"><b>Prikket:</b> en fortælling kulturen bærer, ikke fremstillet som kendsgerning, markeret <b class="g">?</b></span></li>
+            <li><i class="sw prov"></i><span class="en">Red marks a record resting on Wikipedia alone, or a source we could not open</span><span class="da">Rødt markerer et nedslag, der alene hviler på Wikipedia, eller en kilde vi ikke kunne åbne</span></li>
+          </ul>
+        </section>
+        <section>
+          <h2><span class="en">The plate</span><span class="da">Pladen</span></h2>
+          <ul class="key">
+            <li><i class="sw colour"></i><span class="en">The coloured edge is the theme — {atlas.themes.length} themes gathered into {atlas.columns.length} columns, so one column holds two or three colours</span><span class="da">Den farvede kant er temaet — {atlas.themes.length} temaer samlet i {atlas.columns.length} spalter, så én spalte rummer to-tre farver</span></li>
+            <li><i class="sw bar"></i><span class="en">A vertical bar means the event has a duration; the bar spans it</span><span class="da">En lodret bjælke betyder, at nedslaget har en varighed; bjælken dækker den</span></li>
+            <li><i class="sw lead"></i><span class="en">A dotted leader means the card was pushed below its true year to clear the card above. The tick marks the real date</span><span class="da">En prikket henvisningslinje betyder, at kortet er skubbet ned under sit rigtige årstal for at gå fri af kortet ovenfor. Mærket viser den rigtige dato</span></li>
+            <li><i class="sw-grat"></i><span class="en">One faint rule is <b>10 years</b>. The rules crowd where the record is thin and open out where it is dense — the two samples here are the same decade at two different rates. An empty stretch of column is a finding, not a gap to be filled</span><span class="da">Én svag streg er <b>10 år</b>. Stregerne står tæt, hvor kilderne er tynde, og åbner sig, hvor de er tætte — de to prøver her er samme årti i to forskellige målestokke. En tom strækning i en spalte er et fund, ikke et hul der skal fyldes</span></li>
+          </ul>
+        </section>
+        <section>
+          <h2><span class="en">The vertical scale is not linear</span><span class="da">Den lodrette skala er ikke lineær</span></h2>
+          <p>
+            <span class="en"
+              >The record is thin across 360 Viking years and thick across the 1940s alone, so each
+              decade gets whichever is larger: the room its duration implies, or the room its
+              densest column needs. Each era band carries a bar showing what 100 years measures
+              <em>there</em> — compare them and the compression is visible rather than inferred.
+              Periods themselves are conventions, not facts; the atlas argues this with itself at
+              <a href="#lindisfarne">793</a>.</span
+            >
+            <span class="da"
+              >Kildematerialet er tyndt gennem 360 vikingeår og tykt alene gennem 1940'erne, så hvert
+              årti får det største af to mål: den plads dets varighed tilsiger, eller den plads dets
+              tætteste spalte kræver. Hvert tidsbånd bærer en streg, der viser, hvad 100 år måler
+              <em>dér</em> — sammenlign dem, og sammentrykningen bliver synlig i stedet for udledt.
+              Selve periodeinddelingen er en konvention, ikke en kendsgerning; atlasset strides med
+              sig selv om det ved <a href="#lindisfarne">793</a>.</span
+            >
+          </p>
+        </section>
       </div>
-    </header>
+    </details>
+  </header>
 
-    <div class="plate-scroll">
-      <div class="plate" style={`--h:${H_PACKED}px; --cols:${atlas.columns.length}`}>
-        <div class="axis">
-          {
-            atlas.eras.map((era) => (
-              <div class="era" style={`top:${y(era.from)}px; height:${y(era.to) - y(era.from)}px`}>
-                <b>{era.from}</b>
-                <span class="en">{era.name.en}</span>
-                <span class="da">{era.name.da}</span>
-                {/* The scale is not uniform — the reader must see the span a
-                    band covers, not infer it from distance. */}
-                <i class="rate">
-                  <span class="en">{era.to - era.from} yr</span>
-                  <span class="da">{era.to - era.from} år</span>
-                </i>
-              </div>
-            ))
-          }
-        </div>
+  <main id="plate" class="plate-scroll">
+    <div class="plate" style={`--h:${height}px; --cols:${atlas.columns.length}`}>
+      <div class="axis" aria-hidden="true">
+        {
+          atlas.eras.map((era) => (
+            <div class="era" style={`top:${scale.y(era.from)}px; height:${scale.y(era.to) - scale.y(era.from)}px`}>
+              <b>{era.from}</b>
+              <span class="en">{era.name.en}</span>
+              <span class="da">{era.name.da}</span>
+              {/* The scale bar: 100 years drawn at THIS band's rate. */}
+              <i class="scalebar" style={`--bar:${centuryBar(era.from)}px`}>
+                <span class="en">100 yr</span><span class="da">100 år</span>
+              </i>
+            </div>
+          ))
+        }
+      </div>
 
+      <div class="plate-body">
         <div class="columns">
           {
             atlas.columns.map((c) => (
@@ -162,23 +200,53 @@ const H_PACKED = Math.max(scale.total, ...[...layout.values()].map((p) => p.top)
         </div>
 
         <div class="field">
+          {/* The graticule: one faint rule per decade, drawn at each band's own
+              rate. Because the scale is piecewise the rules crowd through the
+              thin Viking record and open out across the 1940s, so the reader
+              watches the compression happen instead of being told about it. */}
+          <div class="graticule" aria-hidden="true">
+            {
+              atlas.eras.map((era) => (
+                <div
+                  class="band"
+                  style={`top:${scale.y(era.from)}px; height:${scale.y(era.to) - scale.y(era.from)}px; --yrs:${era.to - era.from}`}
+                />
+              ))
+            }
+          </div>
           {
             events.map((e) => {
-              const t = themeOf.get(e.theme)!;
+              const t = themeOf(e);
               const col = colIndex.get(columnOf(e))!;
-              const { top, offset } = layout.get(e.id)!;
-              const span = e.endYear ? y(e.endYear) - y(e.year) : 0;
+              const { top, offset } = placed.get(e.id)!;
+              const span = e.endYear ? scale.y(e.endYear) - scale.y(e.year) : 0;
+              const yr = `${e.yearApproximate ? "c. " : ""}${e.year}${e.endYear ? `–${e.endYear}` : ""}`;
+              const yrDa = `${e.yearApproximate ? "ca. " : ""}${e.year}${e.endYear ? `–${e.endYear}` : ""}`;
               return (
                 <article
                   class="ev"
+                  id={e.id}
                   data-theme={e.theme}
+                  data-conf={e.confidence}
+                  data-prov={isProvisional(e) ? "1" : null}
                   data-id={e.id}
-                  style={`top:${top}px; --col:${col}; --span:${span}px; --off:${offset}px; --c:${t.color}; --card:${cardHeight(e)}px; --lines:${titleLines(e)}`}
+                  data-find={`${e.title.en} ${e.title.da} ${e.summary.en} ${e.summary.da} ${e.place ?? ""} ${t.name.en} ${t.name.da}`.toLowerCase()}
+                  style={`top:${top}px; --col:${col}; --span:${span}px; --off:${offset}px; --c:${t.color}; --card:${cardHeight(e.title)}px; --lines:${titleLines(e.title)}`}
                 >
                   {offset > 2 && <i class="leader" aria-hidden="true" />}
                   {span > 0 && <i class="span" aria-hidden="true" />}
-                  <button type="button" class={`marker c-${e.confidence}`}>
-                    <span class="yr">
+                  {/* The accessible name carries what the borders and the colour
+                      say to a sighted reader: theme and confidence. Both
+                      languages are emitted as data and swapped by the toggle,
+                      because an element cannot hold two aria-labels. */}
+                  <button
+                    type="button"
+                    class={`marker c-${e.confidence}`}
+                    aria-haspopup="dialog"
+                    data-en={`${yr} — ${e.title.en} — ${t.name.en} — ${CONFIDENCE[e.confidence].en}`}
+                    data-da={`${yrDa} — ${e.title.da} — ${t.name.da} — ${CONFIDENCE[e.confidence].da}`}
+                  >
+                    <span class="yr" aria-hidden="true">
                       {/* "c." and "ca." are the English and Danish conventions
                           for an uncertain date — rule 5 is reader-visible in
                           whichever language the reader is actually in. */}
@@ -187,12 +255,23 @@ const H_PACKED = Math.max(scale.total, ...[...layout.values()].map((p) => p.top)
                       {e.year}
                       {e.endYear && `–${e.endYear}`}
                     </span>
-                    <span class="ttl en">{e.title.en}</span>
-                    <span class="ttl da">{e.title.da}</span>
-                    {e.confidence === "contested" && <em class="flag">2</em>}
-                    {e.confidence === "legendary" && <em class="flag">?</em>}
+                    <span class="ttl en" aria-hidden="true">{e.title.en}</span>
+                    <span class="ttl da" aria-hidden="true">{e.title.da}</span>
+                    <span class="theme-tag" aria-hidden="true">
+                      <span class="en">{t.name.en}</span><span class="da">{t.name.da}</span>
+                    </span>
+                    {/* The apparatus criticus double dagger — the mark a
+                        critical edition uses for a variant reading. */}
+                    {e.confidence === "contested" && <em class="flag" aria-hidden="true">‡</em>}
+                    {e.confidence === "legendary" && <em class="flag" aria-hidden="true">?</em>}
                   </button>
                   <template>
+                    <b class="folio">
+                      {e.yearApproximate && <span class="en">c. </span>}
+                      {e.yearApproximate && <span class="da">ca. </span>}
+                      {e.year}
+                      {e.endYear && `–${e.endYear}`}
+                    </b>
                     <h2>
                       <span class="en">{e.title.en}</span>
                       <span class="da">{e.title.da}</span>
@@ -288,9 +367,10 @@ const H_PACKED = Math.max(scale.total, ...[...layout.values()].map((p) => p.top)
                           {atlas.links
                             .filter((l) => l.from === e.id || l.to === e.id)
                             .map((l) => {
-                              const other = byId.get(l.from === e.id ? l.to : l.from);
+                              const otherId = l.from === e.id ? l.to : l.from;
+                              const other = byId.get(otherId);
                               return (
-                                <span class="rel">
+                                <button type="button" class="rel" data-goto={otherId}>
                                   <span class="en">
                                     {l.from === e.id ? "→ " : "← "}
                                     {l.relation.en} <b>{other?.title.en ?? l.to}</b>
@@ -299,7 +379,7 @@ const H_PACKED = Math.max(scale.total, ...[...layout.values()].map((p) => p.top)
                                     {l.from === e.id ? "→ " : "← "}
                                     {l.relation.da} <b>{other?.title.da ?? l.to}</b>
                                   </span>
-                                </span>
+                                </button>
                               );
                             })}
                         </p>
@@ -313,404 +393,118 @@ const H_PACKED = Math.max(scale.total, ...[...layout.values()].map((p) => p.top)
         </div>
       </div>
     </div>
+  </main>
 
-    <dialog id="panel">
-      <form method="dialog">
-        <button aria-label={`${UI.close.da} / ${UI.close.en}`}>×</button>
-      </form>
-      <div id="panel-body"></div>
-    </dialog>
+  <dialog id="panel">
+    <form method="dialog">
+      <button class="close">
+        <span aria-hidden="true">×</span>
+        <span class="vh en">Close</span><span class="vh da">Luk</span>
+      </button>
+    </form>
+    <div id="panel-body"></div>
+  </dialog>
 
-    <script>
-      const body = document.body;
+  <script>
+    const root = document.documentElement;
+    const lang = () => root.dataset.lang ?? "da";
 
-      document.getElementById("lang")!.addEventListener("click", () => {
-        const lang = body.dataset.lang === "en" ? "da" : "en";
-        body.dataset.lang = lang;
-        document.documentElement.lang = lang;
-        // <option> can't hold per-language spans, so swap its text directly.
-        document
-          .querySelectorAll<HTMLOptionElement>("#theme-filter option")
-          .forEach((o) => (o.textContent = o.dataset[lang]!));
-      });
+    // ponytail: detail HTML is pre-rendered into a <template> per event and
+    // cloned on open. No client-side data layer, no serialisation step.
+    const panel = document.getElementById("panel") as HTMLDialogElement;
+    const panelBody = document.getElementById("panel-body")!;
+    const cards = [...document.querySelectorAll<HTMLElement>(".ev")];
 
-      // ponytail: detail HTML is pre-rendered into a <template> per event and
-      // cloned on open. No client-side data layer, no serialisation step.
-      const panel = document.getElementById("panel") as HTMLDialogElement;
-      const panelBody = document.getElementById("panel-body")!;
+    // Marker names are bilingual data, applied on load and on every switch.
+    const nameMarkers = () =>
+      document
+        .querySelectorAll<HTMLElement>(".marker")
+        .forEach((b) => b.setAttribute("aria-label", b.dataset[lang()]!));
+    nameMarkers();
+    document.addEventListener("langchange", nameMarkers);
 
-      document.querySelectorAll<HTMLElement>(".ev").forEach((ev) => {
-        ev.querySelector("button")!.addEventListener("click", () => {
-          const tpl = ev.querySelector("template")!;
-          panelBody.replaceChildren(tpl.content.cloneNode(true));
-          panel.showModal();
-        });
-      });
+    function open(card: HTMLElement, push = true) {
+      const tpl = card.querySelector("template")!;
+      panelBody.replaceChildren(tpl.content.cloneNode(true));
+      // The dialog announced as "dialog" — the <h2> is cloned in and has no id
+      // to point aria-labelledby at, so name it from the marker instead.
+      panel.setAttribute("aria-label", card.querySelector(".marker")!.getAttribute("aria-label")!);
+      if (!panel.open) panel.showModal();
+      // A record you cannot link to is a record nobody can cite or assign.
+      if (push) history.replaceState(null, "", "#" + card.dataset.id);
+    }
 
-      // Theme filter dims rather than removes: the shape of the plate — where
-      // the record is thick and where it is thin — is itself information.
-      document.getElementById("theme-filter")!.addEventListener("change", (e) => {
-        const v = (e.target as HTMLSelectElement).value;
-        body.classList.toggle("filtering", !!v);
-        document
-          .querySelectorAll<HTMLElement>(".ev")
-          .forEach((el) => el.classList.toggle("dim", !!v && el.dataset.theme !== v));
-      });
-    </script>
+    cards.forEach((card) =>
+      card.querySelector("button")!.addEventListener("click", () => open(card))
+    );
 
-    <style is:global>
-      :root {
-        --bg: #f4f1ea;
-        --ink: #241f1a;
-        --rule: #cfc7b8;
-        --paper: #fffdf8;
-      }
-      * {
-        box-sizing: border-box;
-      }
-      body {
-        margin: 0;
-        background: var(--bg);
-        color: var(--ink);
-        font: 15px/1.5 ui-serif, Georgia, serif;
-      }
-      body[data-lang="en"] .da,
-      body[data-lang="da"] .en {
-        display: none;
-      }
+    panel.addEventListener("close", () =>
+      history.replaceState(null, "", location.pathname + location.search)
+    );
 
-      header {
-        padding: 2rem clamp(1rem, 4vw, 3rem) 1rem;
-        max-width: 68ch;
-      }
-      h1 {
-        margin: 0;
-        font-size: clamp(1.8rem, 5vw, 2.6rem);
-        letter-spacing: -0.02em;
-      }
-      h1 small {
-        font-size: 0.45em;
-        letter-spacing: 0.12em;
-        color: #7a7266;
-        margin-left: 0.6em;
-      }
-      .lede {
-        color: #554e45;
-        margin: 0.5rem 0 1rem;
-      }
-      .controls {
-        display: flex;
-        gap: 1rem;
-        align-items: center;
-        flex-wrap: wrap;
-        font: 500 13px/1 ui-sans-serif, system-ui, sans-serif;
-      }
-      .controls button,
-      .controls select {
-        font: inherit;
-        padding: 0.5rem 0.8rem;
-        border: 1px solid var(--rule);
-        background: var(--paper);
-        color: inherit;
-        border-radius: 3px;
-        cursor: pointer;
-      }
-      .play {
-        font: inherit;
-        padding: 0.5rem 0.8rem;
-        border: 1px solid var(--ink);
-        background: var(--ink);
-        color: var(--paper);
-        border-radius: 3px;
-        text-decoration: none;
-      }
-      .filter {
-        display: flex;
-        gap: 0.5rem;
-        align-items: center;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: #7a7266;
-      }
+    // The 47 documented relations were unclickable grey text at the bottom of a
+    // panel. Following the chain is the thing a reader will actually do.
+    panelBody.addEventListener("click", (ev) => {
+      const to = (ev.target as HTMLElement).closest<HTMLElement>("[data-goto]")?.dataset.goto;
+      const card = to && document.getElementById(to);
+      if (!card) return;
+      card.scrollIntoView({ block: "center" });
+      open(card as HTMLElement);
+    });
 
-      .plate-scroll {
-        overflow-x: auto;
-        padding: 0 clamp(1rem, 4vw, 3rem) 4rem;
+    const fromHash = () => {
+      // `location.hash && getElementById(...)` yields "" with no hash, and
+      // ""?.classList is undefined rather than nullish — so the optional chain
+      // did not guard it and this threw on every ordinary page load, taking the
+      // filter and search bindings below down with it.
+      const card = location.hash ? document.getElementById(location.hash.slice(1)) : null;
+      if (card?.classList.contains("ev")) {
+        card.scrollIntoView({ block: "center" });
+        open(card as HTMLElement, false);
       }
-      .plate {
-        position: relative;
-        min-width: 1330px;
-        padding-left: 96px;
-      }
-      .columns {
-        display: grid;
-        grid-template-columns: repeat(var(--cols), 1fr);
-        position: sticky;
-        top: 0;
-        z-index: 3;
-        background: var(--bg);
-        border-bottom: 1px solid var(--ink);
-        padding: 0.6rem 0;
-      }
-      .colhead {
-        font: 600 10px/1.3 ui-sans-serif, system-ui, sans-serif;
-        letter-spacing: 0.14em;
-        padding: 0 0.5rem;
-        color: #6b6358;
-      }
-      .field {
-        position: relative;
-        height: var(--h);
-      }
-      /* Card pushed below its true year — mark the real position. */
-      .leader {
-        position: absolute;
-        left: -5px;
-        top: calc(0px - var(--off));
-        height: var(--off);
-        width: 1px;
-        background: linear-gradient(var(--c), transparent);
-        opacity: 0.45;
-      }
-      .leader::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: -2px;
-        width: 5px;
-        height: 1px;
-        background: var(--c);
-      }
-      .axis {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 96px;
-        height: var(--h);
-        margin-top: 2.6rem;
-      }
-      .era {
-        position: absolute;
-        left: 0;
-        width: 88px;
-        border-top: 1px solid var(--ink);
-        padding-top: 0.3rem;
-        font: 11px/1.3 ui-sans-serif, system-ui, sans-serif;
-        color: #7a7266;
-      }
-      .rate {
-        display: block;
-        font-size: 10px;
-        font-style: normal;
-        color: #a09789;
-        margin-top: 0.15rem;
-      }
-      .era b {
-        display: block;
-        font-size: 13px;
-        color: var(--ink);
-      }
+    };
+    fromHash();
+    addEventListener("hashchange", fromHash);
 
-      .ev {
-        position: absolute;
-        left: calc(var(--col) * (100% / var(--cols)));
-        width: calc(100% / var(--cols));
-        padding-right: 0.75rem;
-        transition: opacity 0.15s;
-      }
-      .ev.dim {
-        opacity: 0.16;
-      }
-      .span {
-        position: absolute;
-        left: -5px;
-        top: 4px;
-        width: 2px;
-        height: var(--span);
-        background: var(--c);
-        opacity: 0.5;
-      }
-      .marker {
-        display: block;
-        width: 100%;
-        /* Height the packer assumed — enforced, not hoped for. */
-        height: var(--card);
-        overflow: hidden;
-        text-align: left;
-        background: var(--paper);
-        border: 1px solid var(--rule);
-        border-left: 3px solid var(--c);
-        border-radius: 2px;
-        padding: 0.35rem 0.5rem;
-        font: inherit;
-        color: inherit;
-        cursor: pointer;
-      }
-      .marker:hover,
-      .marker:focus-visible {
-        border-color: var(--c);
-        box-shadow: 0 2px 10px rgb(0 0 0 / 0.09);
-        position: relative;
-        z-index: 2;
-      }
-      .yr {
-        display: block;
-        font: 600 10px/1 ui-sans-serif, system-ui, sans-serif;
-        letter-spacing: 0.06em;
-        color: #8a8276;
-      }
-      .ttl {
-        font-size: 13px;
-        line-height: 17px;
-        margin-top: 0.15rem;
-        /* Clamp to the line count the packer budgeted. Full title is in the
-           panel, so a clipped card loses nothing the reader cannot reach. */
-        display: -webkit-box;
-        -webkit-line-clamp: var(--lines);
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-      }
-      body[data-lang="en"] .ttl.da,
-      body[data-lang="da"] .ttl.en {
-        display: none;
-      }
-      /* Confidence is a visible mark, never a hidden field. */
-      .c-contested {
-        border-style: dashed;
-      }
-      .c-legendary {
-        border-style: dotted;
-        font-style: italic;
-      }
-      .flag {
-        float: right;
-        font: 600 9px/1.4 ui-sans-serif, system-ui, sans-serif;
-        border: 1px solid currentColor;
-        border-radius: 50%;
-        width: 14px;
-        text-align: center;
-        color: #8a8276;
-        font-style: normal;
-      }
+    // Filtering dims rather than removes: the shape of the plate — where the
+    // record is thick and where it is thin — is itself information. Dimmed
+    // cards are also made inert, so the filter filters for a screen reader too
+    // instead of being a purely visual no-op.
+    const filter = document.getElementById("filter") as HTMLSelectElement;
+    const q = document.getElementById("q") as HTMLInputElement;
+    const count = document.getElementById("count")!;
 
-      dialog {
-        max-width: 62ch;
-        width: calc(100vw - 2rem);
-        border: 1px solid var(--ink);
-        background: var(--paper);
-        color: var(--ink);
-        padding: 1.6rem;
-        border-radius: 3px;
+    function apply() {
+      const [kind, val] = (filter.value || ":").split(":");
+      const needle = q.value.trim().toLowerCase();
+      let shown = 0;
+      for (const card of cards) {
+        const passFilter =
+          !filter.value ||
+          (kind === "theme" && card.dataset.theme === val) ||
+          (kind === "conf" && card.dataset.conf === val) ||
+          (kind === "prov" && card.dataset.prov === "1");
+        const passSearch = !needle || card.dataset.find!.includes(needle);
+        const on = passFilter && passSearch;
+        card.classList.toggle("dim", !on);
+        card.inert = !on;
+        if (on) shown++;
       }
-      dialog::backdrop {
-        background: rgb(30 26 22 / 0.45);
-      }
-      dialog > form {
-        float: right;
-      }
-      dialog > form button {
-        border: 0;
-        background: none;
-        font-size: 1.6rem;
-        line-height: 1;
-        cursor: pointer;
-        color: #8a8276;
-      }
-      dialog h2 {
-        margin: 0 0 0.5rem;
-        font-size: 1.5rem;
-      }
-      .meta {
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-        font: 600 10px/1 ui-sans-serif, system-ui, sans-serif;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        margin: 0 0 1rem;
-      }
-      .meta > * {
-        padding: 0.3rem 0.5rem;
-        border: 1px solid var(--rule);
-        border-radius: 2px;
-        color: #6b6358;
-      }
-      .chip {
-        border-left: 3px solid var(--c);
-      }
-      .prov {
-        border-color: #b5442d;
-        color: #b5442d;
-      }
-      .readings blockquote {
-        margin: 0 0 0.8rem;
-        padding-left: 0.9rem;
-        border-left: 2px solid var(--rule);
-      }
-      .readings h3 {
-        margin: 0 0 0.2rem;
-        font: 600 11px/1.2 ui-sans-serif, system-ui, sans-serif;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: #6b6358;
-      }
-      .figures {
-        margin: 1rem 0;
-        border-top: 1px solid var(--rule);
-        padding-top: 0.8rem;
-      }
-      .figures dt {
-        font: 600 11px/1.2 ui-sans-serif, system-ui, sans-serif;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: #6b6358;
-      }
-      .figures dd {
-        margin: 0.1rem 0 0.7rem;
-        font-size: 1.05rem;
-      }
-      .figures dd small {
-        display: block;
-        font-size: 0.75rem;
-        color: #7a7266;
-      }
-      cite {
-        display: block;
-        font: italic 11px/1.4 ui-serif, Georgia, serif;
-        color: #8a8276;
-        margin-top: 0.15rem;
-      }
-      dialog footer {
-        border-top: 1px solid var(--rule);
-        margin-top: 1rem;
-        padding-top: 0.8rem;
-      }
-      dialog footer h3 {
-        font: 600 10px/1 ui-sans-serif, system-ui, sans-serif;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: #6b6358;
-        margin: 0 0 0.5rem;
-      }
-      dialog footer ul {
-        margin: 0;
-        padding-left: 1.1rem;
-        font-size: 12px;
-      }
-      dialog footer a {
-        color: #3d5a80;
-      }
-      .unver {
-        color: #b5442d;
-        margin-left: 0.4rem;
-        font-size: 10px;
-      }
-      .rel {
-        display: block;
-        font-size: 11px;
-        color: #7a7266;
-        margin-top: 0.3rem;
-      }
-    </style>
-  </body>
-</html>
+      root.classList.toggle("filtering", !!filter.value || !!needle);
+      count.textContent =
+        shown === cards.length
+          ? ""
+          : lang() === "en"
+            ? `${shown} of ${cards.length}`
+            : `${shown} af ${cards.length}`;
+    }
+    filter.addEventListener("change", apply);
+    q.addEventListener("input", apply);
+    document.addEventListener("langchange", () => {
+      q.placeholder = q.dataset[lang()]!;
+      apply();
+    });
+    q.placeholder = q.dataset[lang()]!;
+  </script>
+
+</Base>

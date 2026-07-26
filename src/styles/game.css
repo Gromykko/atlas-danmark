@@ -1,0 +1,536 @@
+/* Tidsmaskinen — the game surfaces.
+ *
+ * The quiz used to read as a weaker sibling of the atlas because it shared four
+ * hex values with it and nothing else: a different body size, a hardcoded grey
+ * where the atlas used a token, and answer feedback in Bootstrap's success/
+ * danger green-and-red. It now uses the atlas's own instruments — the board is
+ * a small plate, the clue is an atlas card with its date struck out, and a
+ * correct answer is marked with the surveyor's registration cross rather than
+ * filled in with colour.
+ *
+ * Continuity, not solemnity. The joke — a redacted card — should be visible.
+ */
+
+main {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 0 clamp(1rem, 4vw, 1.5rem) 5rem;
+}
+header {
+  max-width: 64rem;
+  margin: 0 auto;
+}
+.bar {
+  border-top: var(--hairline) solid var(--hair);
+  border-bottom: var(--hairline) solid var(--ink);
+  padding: 0.7rem 0;
+  margin-top: 0.9rem;
+}
+.score {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  color: var(--ink-3);
+}
+.score b {
+  color: var(--ink);
+  font-size: var(--t-small);
+}
+.skill-now {
+  margin-left: auto;
+  letter-spacing: var(--ls-cap-s);
+}
+
+/* The clue card is an atlas card with its year cut out. */
+#card {
+  position: relative;
+  background: var(--stock);
+  border: var(--hairline) solid var(--rule);
+  border-left: 3px solid var(--ink-3);
+  border-radius: 0;
+  box-shadow: 2px 2px 0 0 var(--hair);
+  padding: 1.5rem 1.6rem;
+  margin: 1.6rem 0;
+  min-height: 7rem;
+}
+/* Sequence rounds carry no clue of their own — the cards are the question — so
+   the card collapses to its prompt instead of reserving a void. */
+#card:has(.clue[hidden]) {
+  min-height: 0;
+}
+#card:has(.clue[hidden]) .prompt {
+  margin-bottom: 0;
+}
+#card::before {
+  content: "";
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+  width: 4.2rem;
+  height: 0.7rem;
+  background: repeating-linear-gradient(45deg, var(--accent) 0 3px, transparent 3px 6px),
+    var(--recess);
+  opacity: 0.7;
+}
+.prompt {
+  margin: 0 0 0.7rem;
+  font: 600 var(--t-micro) / var(--lh-apparatus) var(--f-label);
+  text-transform: uppercase;
+  letter-spacing: var(--ls-cap-s);
+  word-spacing: 0.14em;
+  color: var(--ink-3);
+  padding-right: 5.5rem;
+}
+.clue {
+  margin: 0;
+  font: var(--t-lead) / 1.5 var(--f-body);
+  max-width: 56ch;
+  white-space: pre-line;
+  text-wrap: pretty;
+}
+.hint {
+  margin: 0.85rem 0 0;
+  font: italic var(--t-small) / 1.5 var(--f-body);
+  color: var(--ink-2);
+}
+
+/* ---------------------------------------------------------------- the board */
+
+.grid-wrap {
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  min-width: 44rem;
+  /* Even cells: a wide "KRIG" target must not be an easier click than a narrow
+     one, or the board itself nudges the guess. */
+  table-layout: fixed;
+}
+thead th:first-child,
+.rowhead {
+  width: 10rem;
+}
+thead th {
+  padding: 0 0.3rem 0.5rem;
+  vertical-align: bottom;
+  hyphens: auto;
+}
+.rowhead {
+  text-align: right;
+  padding: 0 0.7rem 0 0;
+  border-top: var(--hairline) solid var(--ink);
+  font: 500 var(--t-cap) / 1.3 var(--f-label);
+  color: var(--ink-2);
+  white-space: nowrap;
+  /* Panning right to the last column used to scroll the era label away, in a
+     game whose entire task is choosing the row. */
+  position: sticky;
+  left: 0;
+  background: var(--sheet);
+  z-index: 1;
+}
+.rowhead i {
+  display: block;
+  font: var(--t-micro) / 1.3 var(--f-num);
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  font-style: normal;
+}
+td {
+  padding: 0;
+}
+td button {
+  display: block;
+  width: 100%;
+  height: 2.9rem;
+  border: 0;
+  border-top: var(--hairline) solid var(--grat);
+  border-left: var(--hairline) solid var(--hair);
+  border-radius: 0;
+  background: var(--stock);
+  color: var(--ink);
+  font: 600 1rem/1 var(--f-label);
+  cursor: pointer;
+  transition: background 90ms linear;
+}
+tr td:last-child button {
+  border-right: var(--hairline) solid var(--hair);
+}
+tr:last-child td button {
+  border-bottom: var(--hairline) solid var(--hair);
+}
+td button:hover:not(:disabled) {
+  background: var(--recess);
+}
+td button:disabled {
+  cursor: default;
+}
+/* The surveyor's registration cross — a fix on the plate — instead of a fill.
+   Green-on-red was 1.17:1 against each other and carried the entire result. */
+td button.answer {
+  position: relative;
+  background: color-mix(in oklab, #2d6a4f 14%, var(--stock));
+  box-shadow: inset 0 0 0 2px #2d6a4f;
+  color: #1b4533;
+}
+td button.wrong {
+  position: relative;
+  background: color-mix(in oklab, var(--accent) 12%, var(--stock));
+  box-shadow: inset 0 0 0 var(--hairline) var(--accent);
+  color: var(--accent);
+}
+@media (prefers-color-scheme: dark) {
+  td button.answer {
+    box-shadow: inset 0 0 0 2px #4f9d76;
+    color: #8fd3b0;
+  }
+}
+
+/* ------------------------------------------------------------------ choices */
+
+.choices {
+  display: grid;
+  gap: 0.5rem;
+  margin: 1.5rem 0;
+}
+.choice {
+  text-align: left;
+  font: var(--t-body) / 1.45 var(--f-body);
+  padding: 0.85rem 1rem;
+  border: var(--hairline) solid var(--rule);
+  border-left: 3px solid var(--hair);
+  border-radius: 0;
+  background: var(--stock);
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 90ms linear, background 90ms linear;
+}
+.choice:hover:not(:disabled) {
+  border-left-color: var(--ink);
+  background: var(--recess);
+}
+.choice:disabled {
+  cursor: default;
+}
+.choice.answer {
+  border-left-color: #2d6a4f;
+  background: color-mix(in oklab, #2d6a4f 9%, var(--stock));
+}
+.choice.answer::before {
+  content: "✓  ";
+  color: #2d6a4f;
+  font-weight: 700;
+}
+.choice.partial {
+  border-left-color: var(--ink-3);
+}
+.choice.wrong {
+  border-left-color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 8%, var(--stock));
+}
+.choice.wrong::before {
+  content: "✗  ";
+  color: var(--accent);
+  font-weight: 700;
+}
+.unsure {
+  justify-self: start;
+  font: var(--t-cap) / 1 var(--f-label);
+  padding: 0.55rem 0.8rem;
+  margin-top: 0.4rem;
+  border: var(--hairline) dashed var(--rule);
+  border-radius: 0;
+  background: none;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.unsure:hover {
+  border-style: solid;
+  color: var(--ink);
+}
+
+/* ----------------------------------------------------------------- sequence */
+
+.sequence {
+  margin: 1.5rem 0;
+}
+.slots {
+  list-style: none;
+  counter-reset: slot;
+  margin: 0 0 1.1rem;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+.slot {
+  counter-increment: slot;
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  min-height: 2.6rem;
+  padding: 0.5rem 0.8rem;
+  border: var(--hairline) dashed var(--rule);
+  background: none;
+  color: var(--ink-3);
+  font: var(--t-small) / 1.4 var(--f-body);
+}
+.slot::before {
+  content: counter(slot);
+  font: 600 var(--t-micro) / 1 var(--f-num);
+  color: var(--ink-3);
+  flex: none;
+  width: 1.1em;
+}
+.slot.filled {
+  border-style: solid;
+  border-left: 3px solid var(--ink-3);
+  background: var(--stock);
+  color: var(--ink);
+  cursor: pointer;
+}
+/* On reveal, the four sit on a proportional year axis — the answer is not only
+   the order but how far apart these actually were, which is what a rank
+   ordering hides. */
+/* A hairline at each event's proportional position in the span. Four rows read
+   as a small chart: the order AND the distances, which is exactly what a rank
+   ordering hides. Two events 8 years apart and two 300 years apart occupy the
+   same four slots until you draw this. */
+.slots.revealed .slot {
+  cursor: default;
+  position: relative;
+  padding-left: 4.6rem;
+  background-image: linear-gradient(
+    to right,
+    transparent calc(var(--at) - 1px),
+    var(--rule) calc(var(--at) - 1px),
+    var(--rule) var(--at),
+    transparent var(--at)
+  );
+  background-position: 4.6rem 0;
+  background-size: calc(100% - 5.4rem) 100%;
+  background-repeat: no-repeat;
+}
+.slots.revealed .slot b {
+  position: absolute;
+  left: 0.8rem;
+  font: 600 var(--t-cap) / 1 var(--f-num);
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--ink-3);
+}
+.cards {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  margin-bottom: 1rem;
+}
+.seqcard {
+  text-align: left;
+  padding: 0.75rem 0.9rem;
+  border: var(--hairline) solid var(--rule);
+  border-left: 3px solid var(--ink-3);
+  border-radius: 0;
+  background: var(--stock);
+  color: inherit;
+  cursor: pointer;
+  box-shadow: 1px 1px 0 0 var(--hair);
+}
+.seqcard:hover {
+  background: var(--recess);
+}
+.seqcard b {
+  display: block;
+  font: 600 var(--t-card) / 1.35 var(--f-body);
+  margin-bottom: 0.25rem;
+}
+.seqcard span {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font: var(--t-cap) / 1.45 var(--f-body);
+  color: var(--ink-2);
+}
+.commit {
+  font: 600 var(--t-small) / 1 var(--f-label);
+  padding: 0.7rem 1.1rem;
+  border: var(--hairline) solid var(--ink);
+  border-radius: 0;
+  background: var(--ink);
+  color: var(--sheet);
+  cursor: pointer;
+}
+.commit:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ------------------------------------------------------------------- result */
+
+#result {
+  border-top: var(--hairline) solid var(--ink);
+  margin: 1.5rem 0 3rem;
+  padding-top: 1rem;
+}
+.verdict {
+  margin: 0;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+#r-title {
+  margin: 0.25rem 0 0.5rem;
+  font: 400 var(--t-title) / 1.2 var(--f-display);
+  letter-spacing: -0.012em;
+  text-wrap: balance;
+}
+#r-teach {
+  margin: 0 0 0.9rem;
+  color: var(--ink-2);
+  max-width: 62ch;
+  text-wrap: pretty;
+}
+#r-extra blockquote {
+  margin: 0 0 0.8rem;
+  padding-left: 0.9rem;
+  border-left: 2px solid var(--rule);
+  max-width: 62ch;
+}
+#r-extra h3 {
+  margin: 0 0 0.2rem;
+  font: 600 var(--t-label) / 1.2 var(--f-label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+#r-extra p {
+  margin: 0;
+  font-size: var(--t-small);
+}
+.r-links {
+  display: flex;
+  gap: 1.2rem;
+  font-size: var(--t-cap);
+  margin: 0 0 1rem;
+}
+#next {
+  font: 600 var(--t-small) / 1 var(--f-label);
+  padding: 0.7rem 1.2rem;
+  border: var(--hairline) solid var(--ink);
+  border-radius: 0;
+  background: var(--ink);
+  color: var(--sheet);
+  cursor: pointer;
+}
+#next:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ---------------------------------------------------------------- end screen */
+
+#end {
+  border-top: var(--hairline) solid var(--ink);
+  margin: 1.5rem 0 4rem;
+  padding-top: 1.2rem;
+}
+#end h2 {
+  margin: 0;
+  font: 400 clamp(2rem, 6vw, 3rem) / 1 var(--f-num);
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -0.01em;
+}
+.endsub {
+  margin: 0.3rem 0 1.4rem;
+  color: var(--ink-2);
+  font-size: var(--t-small);
+  max-width: 54ch;
+}
+.skills {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.4rem 1rem;
+  align-items: center;
+  margin: 0 0 1.8rem;
+  max-width: 40rem;
+}
+.skills dt {
+  font: 600 var(--t-micro) / 1.3 var(--f-label);
+  text-transform: uppercase;
+  letter-spacing: var(--ls-cap-s);
+  word-spacing: 0.14em;
+  color: var(--ink-3);
+}
+.skills dd {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.skills dd i {
+  flex: 1;
+  height: 7px;
+  background: linear-gradient(to right, var(--ink) var(--pct), var(--hair) var(--pct));
+}
+.skills dd b {
+  font: 600 var(--t-cap) / 1 var(--f-num);
+  font-variant-numeric: tabular-nums lining-nums;
+  min-width: 3ch;
+  text-align: right;
+}
+.skills dd small {
+  font: var(--t-micro) / 1 var(--f-num);
+  color: var(--ink-3);
+}
+#end h3 {
+  font: 600 var(--t-micro) / 1 var(--f-label);
+  text-transform: uppercase;
+  letter-spacing: var(--ls-cap-s);
+  word-spacing: 0.14em;
+  color: var(--ink-3);
+  margin: 0 0 0.6rem;
+}
+.review {
+  list-style: none;
+  margin: 0 0 1.8rem;
+  padding: 0;
+  max-width: 46rem;
+}
+.review li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.45rem 0;
+  border-bottom: var(--hairline) solid var(--hair);
+  font-size: var(--t-small);
+}
+.review small {
+  color: var(--ink-3);
+  font: var(--t-micro) / 1 var(--f-label);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-left: auto;
+  white-space: nowrap;
+}
+.srclink {
+  font: var(--t-micro) / 1 var(--f-label);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+#end .commit,
+#end .unsure {
+  margin-right: 0.5rem;
+}
+
+@media (max-width: 700px) {
+  table {
+    min-width: 32rem;
+  }
+  thead th:first-child,
+  .rowhead {
+    width: 5.5rem;
+  }
+  .rowhead i {
+    display: none;
+  }
+}

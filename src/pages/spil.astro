@@ -1,459 +1,808 @@
 ---
-import { atlas } from "../data/atlas.ts";
-import type { AtlasEvent } from "../data/schema.ts";
+import Base from "../layouts/Base.astro";
+import "../styles/plate.css";
+import "../styles/game.css";
+import { quizData } from "../data/quiz.ts";
 
-// TIDSMASKINEN — the atlas as a game board.
+// TIDSMASKINEN — the atlas as an instrument you are asked to read.
 //
-// The verb is "reason about when and what kind of thing this was", which is the
-// learning objective itself rather than a proxy for it. Every event added to the
-// atlas becomes a round automatically; there is no separate content to author.
-
-const themeOf = new Map(atlas.themes.map((t) => [t.id, t]));
-const columnOf = (e: AtlasEvent) => themeOf.get(e.theme)!.column;
-const eraOf = (e: AtlasEvent) => atlas.eras.find((r) => e.year >= r.from && e.year < r.to) ?? atlas.eras.at(-1)!;
-
-// The clue must not contain its own answer. Summaries are full of explicit
-// dates ("Signed 5 June 1849..."), so years are redacted out of the prompt text.
-// ponytail: a year is any bare 600–2030 that is not part of a longer number
-// (so "336,000" and "15%" survive). Tightened only if a leak shows up in play.
-const YEAR = /\b(?:1\d{3}|20[0-3]\d|[6-9]\d{2})\b/g;
-const redact = (s: string) =>
-  s.replace(YEAR, (m, i, str) => {
-    const before = str[i - 1];
-    const after = str[i + m.length];
-    if (before === "," || before === "." || after === ",") return m; // part of a bigger number
-    return "————";
-  });
-
-const rounds = atlas.events.map((e) => ({
-  id: e.id,
-  year: e.year,
-  col: columnOf(e),
-  era: eraOf(e).id,
-  theme: e.theme,
-  color: themeOf.get(e.theme)!.color,
-  title: e.title,
-  clue: { en: redact(e.summary.en), da: redact(e.summary.da) },
-  // One figure makes a good second clue — redacted the same way.
-  hint: e.figures?.[0]
-    ? { en: redact(e.figures[0].value.en), da: redact(e.figures[0].value.da) }
-    : null,
-  url: e.sources[0]?.url ?? null
-}));
-
-const board = { columns: atlas.columns, eras: atlas.eras };
+// The old game had one verb: place a de-dated paragraph on a 7×7 grid. It was a
+// decent question and it tested one thing, while the schema underneath it
+// encodes four others — how firm the evidence is, whose reading a passage
+// argues from, what a figure was measured on, and which sequences the record
+// actually documents. Those are now the game.
+//
+// Everything the player sees before a reveal was redacted at build time and is
+// asserted leak-free by scripts/validate.ts. Session assembly happens in the
+// browser so no two sessions are alike on a static site.
+const data = quizData();
 ---
 
-<html lang="da">
-  <head>
-    <meta charset="utf-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Tidsmaskinen · Atlas Danmark</title>
-    <meta
-      name="description"
-      content="Place the event on the plate: which domain, which era. A guessing game built on the Atlas Danmark dataset."
-    />
-  </head>
-  <body data-lang="da">
-    <header>
-      <h1>
-        <span class="en">The Time Machine</span><span class="da">Tidsmaskinen</span>
-      </h1>
-      <p class="lede">
-        <span class="en"
-          >The machine is broken and the dates are gone. Read the fragment, then place it on the
-          plate — which domain, and which age.</span
-        >
-        <span class="da"
-          >Maskinen er i stykker, og årstallene er væk. Læs fragmentet, og placér det på pladen —
-          hvilket område, og hvilken tid.</span
-        >
-      </p>
-      <div class="bar">
-        <button id="lang" type="button"><span class="en">Dansk</span><span class="da">English</span></button>
-        <span class="score">
-          <span class="en">Round</span><span class="da">Runde</span>
-          <b id="round">1</b>/<b id="total">10</b>
-        </span>
-        <span class="score">
-          <span class="en">Score</span><span class="da">Point</span>
-          <b id="score">0</b>
-        </span>
-        <a href="/"><span class="en">← Atlas</span><span class="da">← Atlas</span></a>
-      </div>
-    </header>
+<Base
+  title="Tidsmaskinen · Atlas Danmark"
+  description="Læs fragmentet og placér det: hvilket område, hvilken tid, og hvor sikkert er belægget? Et spil bygget på Atlas Danmarks kildebelagte datasæt."
+>
+  <header>
+    <h1>
+      <span class="en">The Time Machine</span><span class="da">Tidsmaskinen</span>
+    </h1>
+    <p class="lede">
+      <span class="en"
+        >The machine is broken and the dates are gone. Twelve rounds on the atlas's own record —
+        where a thing belongs, how firmly we know it, and what actually followed from it. Guessing
+        at random scores zero, not a consolation prize.</span
+      >
+      <span class="da"
+        >Maskinen er i stykker, og årstallene er væk. Tolv runder på atlassets eget materiale — hvor
+        noget hører hjemme, hvor sikkert vi ved det, og hvad der faktisk fulgte af det. At gætte
+        tilfældigt giver nul, ikke en trøstepræmie.</span
+      >
+    </p>
+    <div class="bar">
+      <button data-lang-toggle type="button">
+        <span class="en">Dansk</span><span class="da">English</span>
+      </button>
+      <span class="score">
+        <span class="en">Round</span><span class="da">Runde</span>
+        <b id="round">1</b>/<b id="total">12</b>
+      </span>
+      <span class="score">
+        <span class="en">Score</span><span class="da">Point</span>
+        <b id="score">0</b>
+      </span>
+      <span class="score skill-now" id="skill-now"></span>
+      <a href="/"><span class="en">← Atlas</span><span class="da">← Atlas</span></a>
+    </div>
+  </header>
 
-    <main>
-      <section id="card">
-        <p class="clue" id="clue"></p>
-        <p class="hint" id="hint"></p>
-      </section>
+  <main id="main">
+    <section id="card">
+      <p class="prompt" id="prompt"></p>
+      <p class="clue" id="clue"></p>
+      <p class="hint" id="hint"></p>
+    </section>
 
-      <div class="grid-wrap">
-        <table id="board">
-          <thead>
-            <tr>
-              <th></th>
-              {
-                board.columns.map((c) => (
-                  <th>
-                    <span class="en">{c.name.en}</span>
-                    <span class="da">{c.name.da}</span>
-                  </th>
-                ))
-              }
-            </tr>
-          </thead>
-          <tbody>
+    {/* One answer surface per mode. Only one is ever visible. */}
+    <div class="grid-wrap" id="board-wrap" hidden>
+      <table id="board">
+        <thead>
+          <tr>
+            <th scope="col"></th>
             {
-              board.eras.map((era) => (
-                <tr>
-                  <th class="rowhead">
-                    <span class="en">{era.name.en}</span>
-                    <span class="da">{era.name.da}</span>
-                    <i>
-                      {era.from}–{era.to}
-                    </i>
-                  </th>
-                  {board.columns.map((c) => (
-                    <td>
-                      <button type="button" data-col={c.id} data-era={era.id} aria-label={`${c.name.da} · ${era.name.da}`} />
-                    </td>
-                  ))}
-                </tr>
+              data.columns.map((c) => (
+                <th scope="col">
+                  <span class="en">{c.name.en}</span>
+                  <span class="da">{c.name.da}</span>
+                </th>
               ))
             }
-          </tbody>
-        </table>
-      </div>
+          </tr>
+        </thead>
+        <tbody>
+          {
+            data.eras.map((era) => (
+              <tr>
+                <th class="rowhead" scope="row">
+                  <span class="en">{era.name.en}</span>
+                  <span class="da">{era.name.da}</span>
+                  <i>
+                    {era.from}–{era.to}
+                  </i>
+                </th>
+                {data.columns.map((c) => (
+                  <td>
+                    <button
+                      type="button"
+                      data-col={c.id}
+                      data-era={era.id}
+                      data-en={`${c.name.en} · ${era.name.en}`}
+                      data-da={`${c.name.da} · ${era.name.da}`}
+                    />
+                  </td>
+                ))}
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
 
-      <section id="result" hidden>
-        <h2 id="r-title"></h2>
-        <p id="r-verdict"></p>
-        <p id="r-detail"></p>
-        <a id="r-source" target="_blank" rel="noopener">
-          <span class="en">Read the source</span><span class="da">Læs kilden</span>
-        </a>
-        <button id="next" type="button">
-          <span class="en">Next →</span><span class="da">Næste →</span>
-        </button>
-      </section>
-    </main>
+    <div id="choices" class="choices" hidden></div>
+    <div id="sequence" class="sequence" hidden></div>
 
-    <script define:vars={{ rounds, eras: board.eras }}>
-      const body = document.body;
-      const $ = (id) => document.getElementById(id);
-      const lang = () => body.dataset.lang;
+    <section id="result" hidden aria-live="polite">
+      <p class="verdict" id="r-verdict"></p>
+      <h2 id="r-title"></h2>
+      <p id="r-teach"></p>
+      <div id="r-extra"></div>
+      <p class="r-links">
+        <a id="r-atlas"><span class="en">Open in the atlas</span><span class="da">Åbn i atlasset</span></a>
+        <a id="r-source" target="_blank" rel="noopener"
+          ><span class="en">Read the source</span><span class="da">Læs kilden</span></a
+        >
+      </p>
+      <button id="next" type="button">
+        <span class="en">Next →</span><span class="da">Næste →</span>
+      </button>
+    </section>
 
-      $("lang").addEventListener("click", () => {
-        body.dataset.lang = lang() === "en" ? "da" : "en";
-        document.documentElement.lang = body.dataset.lang;
-        if (current) paintCard();
-      });
+    <section id="end" hidden></section>
+  </main>
 
-      const TOTAL = 10;
-      let deck = [];
-      let current = null;
-      let n = 0;
-      let score = 0;
-      let answered = false;
+  <script define:vars={{ DATA: data }}>
+    const root = document.documentElement;
+    const L = () => root.dataset.lang ?? "da";
+    const $ = (id) => document.getElementById(id);
+    const t = (x) => (x ? x[L()] : "");
 
-      // Fisher–Yates. A fresh shuffle per session, so the same ten never repeat.
-      function shuffle(a) {
-        for (let i = a.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [a[i], a[j]] = [a[j], a[i]];
+    // ---- persistence -------------------------------------------------------
+    // Guarded everywhere: private-mode Safari throws on access, and a game that
+    // dies because it could not remember something is worse than a forgetful one.
+    const store = {
+      get(k, d) {
+        try {
+          return JSON.parse(localStorage.getItem("atlas.quiz." + k)) ?? d;
+        } catch {
+          return d;
         }
-        return a;
+      },
+      set(k, v) {
+        try {
+          localStorage.setItem("atlas.quiz." + k, JSON.stringify(v));
+        } catch {}
+      },
+      clear() {
+        try {
+          for (const k of ["seen", "missed", "skill", "sessions"])
+            localStorage.removeItem("atlas.quiz." + k);
+        } catch {}
       }
+    };
 
-      function paintCard() {
-        $("clue").textContent = current.clue[lang()];
-        $("hint").textContent = current.hint ? current.hint[lang()] : "";
+    const byId = new Map(DATA.events.map((e) => [e.id, e]));
+    const eraIx = new Map(DATA.eras.map((e, i) => [e.id, i]));
+    const readingsOf = new Map(DATA.readings.map((r) => [r.id, r.readings]));
+
+    const rnd = (n) => Math.floor(Math.random() * n);
+    const pick = (a) => a[rnd(a.length)];
+    const shuffle = (a) => {
+      const c = [...a];
+      for (let i = c.length - 1; i > 0; i--) {
+        const j = rnd(i + 1);
+        [c[i], c[j]] = [c[j], c[i]];
       }
+      return c;
+    };
+    const sample = (a, n) => shuffle(a).slice(0, n);
 
-      function deal() {
-        if (n >= TOTAL) return finish();
-        current = deck[n];
-        answered = false;
-        n++;
-        $("round").textContent = n;
-        paintCard();
-        $("result").hidden = true;
+    // ---- round builders ----------------------------------------------------
+
+    const eraMid = (id) => {
+      const r = DATA.eras.find((x) => x.id === id);
+      return (r.from + r.to) / 2;
+    };
+    // Credit decays in YEARS, not era indices. "One era off" between Kalmar and
+    // the Reformation is 139 years of error; between Absolutism and the
+    // Constitution it can be a single year. An index is not a unit of error.
+    const placeRaw = (e, col, era) =>
+      0.5 * (col === e.col ? 1 : 0) + 0.5 * Math.max(0, 1 - Math.abs(eraMid(era) - e.year) / 400);
+
+    function placeRound(e) {
+      const cells = DATA.columns.flatMap((c) => DATA.eras.map((r) => [c.id, r.id]));
+      // The board is not uniform — 36 of 107 events sit in the modern era and 6
+      // in belief — so the baseline is derived per item. An event in a crowded
+      // cell is worth less because guessing finds it more often. No hand-tuning.
+      const chance = cells.reduce((s, [c, r]) => s + placeRaw(e, c, r), 0) / cells.length;
+      return {
+        mode: "place", ev: e, chance,
+        prompt: { en: "Place it: which domain, and which age?", da: "Placér det: hvilket område, og hvilken tid?" },
+        clue: e.clue, hint: e.hint,
+        score: (ans) => placeRaw(e, ans.col, ans.era)
+      };
+    }
+
+    const RANK = { established: 0, sourced: 1, contested: 2, legendary: 3 };
+    const FIRM = [
+      ["established", { en: "Established", da: "Fastslået" }],
+      ["sourced", { en: "Sourced, not cross-checked", da: "Kildebelagt, ikke efterprøvet" }],
+      ["contested", { en: "Specialists disagree", da: "Forskerne er uenige" }],
+      ["legendary", { en: "A story, not a record", da: "Et sagn, ikke en optegnelse" }]
+    ];
+
+    function firmnessRound(e) {
+      const truth = RANK[e.conf];
+      // Ordinal, so credit is graded. Confusing "sourced" with "established" is
+      // a venial slip; calling a genuine dispute settled is the characteristic
+      // failure of national history and costs the most of any answer here.
+      const raw = (g) => 1 - Math.abs(RANK[g] - truth) / 3;
+      const choices = FIRM.map(([id, label]) => ({ id, label, raw: raw(id) }));
+      return {
+        mode: "firmness", ev: e,
+        chance: choices.reduce((s, c) => s + c.raw, 0) / choices.length,
+        prompt: { en: "How firm is the record beneath this claim?", da: "Hvor sikkert er belægget bag denne påstand?" },
+        clue: e.clue, hint: null, choices,
+        score: (ans) => raw(ans)
+      };
+    }
+
+    function sequenceRound(pool) {
+      for (let a = 0; a < 80; a++) {
+        const four = sample(pool, 4).sort((x, y) => x.year - y.year);
+        if (four.length < 4) return null;
+        // Reject sets too close to separate honestly, or whose spans overlap:
+        // "which came first" is ill-posed for two processes running at once, and
+        // marking a defensible answer wrong is worse than dropping the question.
+        const ok = four.every((e, i) => i === 0 || (e.year - four[i - 1].year >= 8 && e.year > four[i - 1].end));
+        if (!ok) continue;
+        return {
+          mode: "sequence", ev: four[0], chance: 0.5,
+          prompt: { en: "Put these in order, earliest first.", da: "Sæt disse i rækkefølge, ældst først." },
+          clue: null, hint: null, cards: shuffle(four), answer: four,
+          teach: {
+            en: `${four[3].year - four[0].year} years separate the first from the last. Order is not the same as distance — the revealed cards sit on a proportional axis so you can see both.`,
+            da: `${four[3].year - four[0].year} år skiller den første fra den sidste. Rækkefølge er ikke det samme som afstand — de afslørede kort står på en forholdsmæssig akse, så begge dele kan ses.`
+          },
+          // Kendall tau over the 6 pairs. Ordering knowledge IS pairwise: three
+          // of four positions right should not score the same as nothing, and a
+          // fully reversed answer is an active misconception that should cost.
+          score: (ans) => {
+            let c = 0;
+            for (let i = 0; i < 4; i++)
+              for (let j = i + 1; j < 4; j++)
+                if (byId.get(ans[i]).year < byId.get(ans[j]).year) c++;
+            return c / 6;
+          }
+        };
+      }
+      return null;
+    }
+
+    function consequenceRound() {
+      for (let a = 0; a < 40; a++) {
+        const link = pick(DATA.links);
+        const from = byId.get(link.from), to = byId.get(link.to);
+        if (!from || !to) continue;
+        const partners = new Set(
+          DATA.links.filter((l) => l.from === from.id || l.to === from.id).flatMap((l) => [l.from, l.to])
+        );
+        const pool = DATA.events.filter((e) => e.era === to.era && !partners.has(e.id));
+        // At least two distractors must post-date `from`, so "pick the later
+        // one" is never sufficient — 12 of the 47 links join same-year events
+        // and one runs backwards, which is the whole lesson.
+        const later = pool.filter((e) => e.year > from.year);
+        const d = sample([...later, ...later, ...pool], 3);
+        if (new Set(d.map((x) => x.id)).size < 3) continue;
+        const others = [...partners].filter((id) => id !== from.id && id !== to.id);
+        const choices = [
+          { id: to.id, label: to.safeTitle, raw: 1 },
+          ...d.map((x) => ({ id: x.id, label: x.safeTitle, raw: others.includes(x.id) ? 0.5 : 0 }))
+        ];
+        return {
+          mode: "consequence", ev: to,
+          chance: choices.reduce((s, c) => s + c.raw, 0) / choices.length,
+          prompt: { en: "The atlas records a relation from here. To what?", da: "Atlasset registrerer en forbindelse herfra. Til hvad?" },
+          clue: {
+            en: `${from.safeTitle.en} — ${from.clue.en}\n\n→ ${link.relation.en} …`,
+            da: `${from.safeTitle.da} — ${from.clue.da}\n\n→ ${link.relation.da} …`
+          },
+          hint: null, choices: shuffle(choices),
+          teach: from.year === to.year
+            ? { en: "Both fall in the same year. Chronology cannot separate them; the atlas records the relation directly.", da: "Begge falder i samme år. Kronologien kan ikke skille dem; atlasset registrerer forbindelsen direkte." }
+            : { en: "The atlas records 47 relations. A missing link is a missing record, not proof that no relation existed.", da: "Atlasset registrerer 47 forbindelser. En manglende forbindelse er et manglende belæg, ikke bevis for at ingen fandtes." },
+          score: (ans) => choices.find((c) => c.id === ans).raw
+        };
+      }
+      return null;
+    }
+
+    function readingRound() {
+      for (let a = 0; a < 40; a++) {
+        const id = pick([...readingsOf.keys()]);
+        const rs = readingsOf.get(id), i = rnd(rs.length);
+        const mine = rs[i], sib = rs[(i + 1) % rs.length];
+        const foreign = sample(
+          [...readingsOf.entries()].filter(([k]) => k !== id).flatMap(([, v]) => v),
+          2
+        );
+        if (foreign.length < 2) continue;
+        // A label sharing a rare word with its passage can be matched on
+        // vocabulary instead of argument. Redraw rather than reward that.
+        const words = (s) => new Set((s.toLowerCase().match(/[a-zæøå]{6,}/g) || []));
+        const body = words(mine.text.en + " " + mine.text.da);
+        const tell = (r) => [...words(r.side.en + " " + r.side.da)].some((w) => body.has(w));
+        if (tell(mine) && !tell(sib) && !foreign.some(tell)) continue;
+
+        const choices = [
+          { id: "ok", label: mine.side, raw: 1 },
+          { id: "sib", label: sib.side, raw: 0.25 },
+          ...foreign.map((r, n) => ({ id: "f" + n, label: r.side, raw: 0 }))
+        ];
+        return {
+          mode: "reading", ev: byId.get(id),
+          chance: choices.reduce((s, c) => s + c.raw, 0) / choices.length,
+          prompt: { en: "Whose reading is this?", da: "Hvis læsning er dette?" },
+          clue: mine.text, hint: null, choices: shuffle(choices),
+          extra: rs,
+          teach: { en: "The atlas does not choose between these. Both are in the record, and the entry is marked contested for that reason.", da: "Atlasset vælger ikke mellem disse. Begge står i materialet, og nedslaget er markeret omstridt af netop den grund." },
+          score: (ans) => choices.find((c) => c.id === ans).raw
+        };
+      }
+      return null;
+    }
+
+    function basisRound() {
+      const b = pick(DATA.bases);
+      const others = DATA.bases.filter((x) => x !== b);
+      if (others.length < 3) return null;
+      // Every option is a true statement about some figure in the atlas, so the
+      // round cannot be won by picking whichever sounds most cautious.
+      const choices = shuffle([
+        { id: "ok", label: b.basis, raw: 1 },
+        ...sample(others, 3).map((o, n) => ({ id: "d" + n, label: o.basis, raw: 0 }))
+      ]);
+      return {
+        mode: "basis", ev: byId.get(b.id), chance: 0.25,
+        prompt: { en: "Before this figure can be compared with another — or drawn as a line — what has to be stated?", da: "Før dette tal kan sammenlignes med et andet — eller tegnes som en kurve — hvad skal så oplyses?" },
+        clue: { en: `${b.label.en}: ${b.value.en}`, da: `${b.label.da}: ${b.value.da}` },
+        hint: null, choices,
+        teach: { en: "A figure that cannot be compared must not be drawn as if it can. This is the error the atlas exists to prevent.", da: "Et tal, der ikke kan sammenlignes, må ikke tegnes som om det kan. Det er den fejl, atlasset findes for at forhindre." },
+        score: (ans) => choices.find((c) => c.id === ans).raw
+      };
+    }
+
+    // ---- session -----------------------------------------------------------
+
+    const SPINE = ["place", "place", "sequence", "sequence", "firmness", "firmness",
+      "consequence", "consequence", "reading", "basis", "sequence", "firmness"];
+    const SKILL = {
+      place: { en: "Periodisation", da: "Periodisering" },
+      sequence: { en: "Chronology", da: "Kronologi" },
+      firmness: { en: "Evidential judgement", da: "Kildekritik" },
+      consequence: { en: "Cause and consequence", da: "Årsag og virkning" },
+      reading: { en: "Interpretation", da: "Fortolkning" },
+      basis: { en: "Comparability", da: "Sammenlignelighed" }
+    };
+
+    function build() {
+      const seen = store.get("seen", {});
+      const missed = store.get("missed", {});
+      const rounds = [];
+      const usedEra = {};
+      // `d` drives which items are chosen, never how they are scored. A harder
+      // question must not be worth more, or the score stops meaning "how much
+      // did you know" and starts meaning "what were you shown".
+      let d = 0.35;
+
+      for (const mode of SPINE) {
+        let r = null;
+        if (mode === "place" || mode === "firmness") {
+          let pool = DATA.events.filter(
+            (e) => (usedEra[e.era] || 0) < 4 && e.era !== (rounds.at(-1)?.ev.era)
+          );
+          // Spaced retrieval: something missed before comes back.
+          const due = pool.filter((e) => missed[e.id]);
+          const fresh = pool.filter((e) => !seen[e.id]);
+          if (mode === "firmness") {
+            // 71% of the dataset is `established`; always clicking it must not
+            // be a winning strategy. Low difficulty shows only the two extremes.
+            const want = d < 0.5 ? ["established", "contested"] : ["established", "contested", "sourced", "legendary"];
+            const strat = pool.filter((e) => want.includes(e.conf));
+            const rare = strat.filter((e) => e.conf !== "established");
+            pool = Math.random() < 0.55 && rare.length ? rare : strat.length ? strat : pool;
+          } else if (d < 0.5) {
+            const big = pool.filter((e) => ["power", "land", "conflict", "culture"].includes(e.col));
+            if (big.length) pool = big;
+          }
+          const from = due.length && Math.random() < 0.4 ? due : fresh.length >= 4 ? fresh.filter((e) => pool.includes(e)) : pool;
+          const e = pick(from.length ? from : pool);
+          if (e) {
+            r = mode === "place" ? placeRound(e) : firmnessRound(e);
+            usedEra[e.era] = (usedEra[e.era] || 0) + 1;
+          }
+        } else if (mode === "sequence") {
+          // The hard tier draws all four from one era, where register and
+          // vocabulary are constant and only content can separate them. Kalmar
+          // and the Reformation hold 6 events each and cannot supply a spaced
+          // four, so they are never the single era.
+          const big = DATA.eras.filter((x) => DATA.events.filter((e) => e.era === x.id).length >= 10);
+          const pool = d > 0.6 && big.length
+            ? DATA.events.filter((e) => e.era === pick(big).id)
+            : DATA.events;
+          r = sequenceRound(pool);
+        } else if (mode === "consequence") r = consequenceRound();
+        else if (mode === "reading") r = readingRound();
+        else if (mode === "basis") r = basisRound();
+
+        if (r) {
+          rounds.push(r);
+          d = Math.min(1, d + 0.1);
+        }
+      }
+      return rounds;
+    }
+
+    // ---- play --------------------------------------------------------------
+
+    let deck = [], n = 0, cur = null, answered = false, score = 0, log = [];
+    let placed = [];
+
+    const wraps = ["board-wrap", "choices", "sequence"];
+    const show = (which) => wraps.forEach((w) => ($(w).hidden = w !== which));
+
+    function paint() {
+      $("prompt").textContent = t(cur.prompt);
+      $("clue").textContent = cur.clue ? t(cur.clue) : "";
+      $("clue").hidden = !cur.clue;
+      $("hint").textContent = cur.hint ? t(cur.hint) : "";
+      $("hint").hidden = !cur.hint;
+      $("skill-now").textContent = t(SKILL[cur.mode]);
+
+      if (cur.mode === "place") {
+        show("board-wrap");
         document.querySelectorAll("#board button").forEach((b) => {
           b.className = "";
-          b.disabled = false;
+          b.disabled = answered;
           b.textContent = "";
+          b.setAttribute("aria-label", b.dataset[L()]);
         });
+      } else if (cur.mode === "sequence") {
+        show("sequence");
+        renderSequence();
+      } else {
+        show("choices");
+        $("choices").replaceChildren(
+          ...cur.choices.map((c) => {
+            const b = document.createElement("button");
+            b.type = "button";
+            b.className = "choice";
+            b.textContent = t(c.label);
+            b.disabled = answered;
+            b.onclick = () => answer(c.id);
+            return b;
+          }),
+          unsure()
+        );
       }
+    }
 
-      function guess(col, era) {
-        if (answered) return;
-        answered = true;
+    // Worth exactly zero, never negative. One button buys calibration data —
+    // the most important thing a history assessment can measure — without a
+    // confidence slider on every round.
+    function unsure() {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "unsure";
+      b.textContent = L() === "en" ? "Not sure" : "Ved ikke";
+      b.onclick = () => answer(null);
+      return b;
+    }
 
-        const rightCol = col === current.col;
-        const rightEra = era === current.era;
-        // Distance in eras, so a near miss reads as a near miss.
-        const gi = eras.findIndex((e) => e.id === era);
-        const ai = eras.findIndex((e) => e.id === current.era);
-        const off = Math.abs(gi - ai);
+    function renderSequence() {
+      const wrap = $("sequence");
+      wrap.replaceChildren();
+      const slots = document.createElement("ol");
+      slots.className = "slots";
+      for (let i = 0; i < 4; i++) {
+        const li = document.createElement("li");
+        li.className = "slot";
+        const id = placed[i];
+        if (id) {
+          const e = byId.get(id);
+          li.textContent = t(e.safeTitle);
+          li.classList.add("filled");
+          li.onclick = () => {
+            placed[i] = null;
+            renderSequence();
+          };
+        } else {
+          li.textContent = L() === "en" ? "—" : "—";
+        }
+        slots.append(li);
+      }
+      const pool = document.createElement("div");
+      pool.className = "cards";
+      for (const e of cur.cards) {
+        if (placed.includes(e.id)) continue;
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "seqcard";
+        b.innerHTML = "";
+        const h = document.createElement("b");
+        h.textContent = t(e.safeTitle);
+        const p = document.createElement("span");
+        p.textContent = t(e.clue);
+        b.append(h, p);
+        b.onclick = () => {
+          const i = placed.findIndex((x) => !x);
+          if (i >= 0) {
+            placed[i] = e.id;
+            renderSequence();
+          }
+        };
+        pool.append(b);
+      }
+      const go = document.createElement("button");
+      go.type = "button";
+      go.className = "commit";
+      go.textContent = L() === "en" ? "Lock it in" : "Lås rækkefølgen";
+      go.disabled = placed.some((x) => !x);
+      go.onclick = () => answer([...placed]);
+      wrap.append(slots, pool, go, unsure());
+    }
 
-        let points = 0;
-        if (rightCol && rightEra) points = 100;
-        else if (rightCol) points = Math.max(0, 50 - off * 15);
-        else if (rightEra) points = 40;
-        score += points;
-        $("score").textContent = score;
+    function answer(ans) {
+      if (answered) return;
+      answered = true;
+      const raw = ans === null ? cur.chance : cur.score(ans);
+      // Per-item chance correction. A random player converges to 0, not to a
+      // positive number; partial knowledge earns proportional credit; being
+      // confidently backwards costs, but cannot spiral.
+      const adj = Math.max(-0.5, (raw - cur.chance) / (1 - cur.chance));
+      const pts = ans === null ? 0 : Math.round(100 * adj);
+      score += pts;
+      $("score").textContent = score;
+      log.push({ r: cur, ans, pts, adj: ans === null ? 0 : adj });
+      reveal(ans, pts);
+    }
 
+    function reveal(ans, pts) {
+      const e = cur.ev;
+      if (cur.mode === "place") {
         document.querySelectorAll("#board button").forEach((b) => {
           b.disabled = true;
-          const isAnswer = b.dataset.col === current.col && b.dataset.era === current.era;
-          const isGuess = b.dataset.col === col && b.dataset.era === era;
-          if (isAnswer) b.className = "answer";
-          if (isGuess && !isAnswer) b.className = "wrong";
+          const isAns = b.dataset.col === e.col && b.dataset.era === e.era;
+          const isGuess = ans && b.dataset.col === ans.col && b.dataset.era === ans.era;
+          // Text, not just fill: green-on-red at 1.17:1 is indistinguishable
+          // under deuteranopia and invisible to a screen reader entirely.
+          if (isAns) {
+            b.className = "answer";
+            b.textContent = "✓";
+            b.setAttribute("aria-label", b.dataset[L()] + " — " + (L() === "en" ? "correct" : "rigtigt"));
+          }
+          if (isGuess && !isAns) {
+            b.className = "wrong";
+            b.textContent = "✗";
+            b.setAttribute("aria-label", b.dataset[L()] + " — " + (L() === "en" ? "your answer, wrong" : "dit svar, forkert"));
+          }
         });
-
-        const t = lang() === "en" ? current.title.en : current.title.da;
-        $("r-title").textContent = `${current.year} — ${t}`;
-        const verdicts = {
-          en: points === 100 ? "Exactly right." : points > 0 ? "Close." : "Not this time.",
-          da: points === 100 ? "Helt rigtigt." : points > 0 ? "Tæt på." : "Ikke denne gang."
-        };
-        $("r-verdict").textContent = `${verdicts[lang()]} +${points}`;
-        $("r-detail").textContent =
-          lang() === "en"
-            ? rightEra
-              ? "Right age."
-              : `You were ${off} age${off > 1 ? "s" : ""} off.`
-            : rightEra
-              ? "Rigtig tid."
-              : `Du var ${off} tid${off > 1 ? "er" : ""} ved siden af.`;
-        const src = $("r-source");
-        if (current.url) {
-          src.href = current.url;
-          src.hidden = false;
-        } else src.hidden = true;
-        $("result").hidden = false;
-        $("next").focus();
+      } else if (cur.mode === "sequence") {
+        renderSequenceAnswer(ans);
+      } else {
+        [...$("choices").querySelectorAll(".choice")].forEach((b, i) => {
+          b.disabled = true;
+          const c = cur.choices[i];
+          if (c.raw === 1) b.classList.add("answer");
+          else if (ans === c.id) b.classList.add("wrong");
+          else if (c.raw > 0) b.classList.add("partial");
+        });
       }
 
-      function finish() {
-        $("card").innerHTML = "";
-        $("clue")?.remove();
-        const done = lang() === "en"
-          ? `Done — ${score} of ${TOTAL * 100} points.`
-          : `Færdig — ${score} af ${TOTAL * 100} point.`;
-        $("r-title").textContent = done;
-        $("r-verdict").textContent = "";
-        $("r-detail").textContent = "";
-        $("r-source").hidden = true;
-        $("next").textContent = lang() === "en" ? "Play again" : "Spil igen";
-        $("next").onclick = () => location.reload();
-        $("result").hidden = false;
+      const good = pts >= 95, part = pts > 0;
+      $("r-verdict").textContent =
+        (L() === "en"
+          ? ans === null ? "Passed" : good ? "Exactly" : part ? "Partly" : "No"
+          : ans === null ? "Sprunget over" : good ? "Præcis" : part ? "Delvist" : "Nej") +
+        `  ${pts > 0 ? "+" : ""}${pts}`;
+      $("r-title").textContent = `${e.year} — ${t(e.title)}`;
+
+      // Feedback must teach. "You were 2 ages off" names the size of the error
+      // and says nothing about why the fragment belonged where it did.
+      let teach = cur.teach ? t(cur.teach) : "";
+      if (cur.mode === "place") {
+        const era = DATA.eras.find((x) => x.id === e.era);
+        teach = (L() === "en"
+          ? `${t(era.name)}, ${era.from}–${era.to}. Filed under ${t(DATA.columns.find((c) => c.id === e.col).name)}.`
+          : `${t(era.name)}, ${era.from}–${era.to}. Placeret under ${t(DATA.columns.find((c) => c.id === e.col).name)}.`);
+      }
+      if (cur.mode === "firmness") {
+        teach = (L() === "en" ? "Recorded as: " : "Registreret som: ") +
+          t(FIRM.find(([id]) => id === e.conf)[1]) + ". " + teach;
+      }
+      $("r-teach").textContent = teach;
+
+      const extra = $("r-extra");
+      extra.replaceChildren();
+      // On a contested item, show both readings side by side. The lesson is not
+      // "you were wrong", it is "here are the two accounts the record supports".
+      const rs = cur.extra ?? (cur.mode === "firmness" ? readingsOf.get(e.id) : null);
+      if (rs) {
+        for (const r of rs) {
+          const bq = document.createElement("blockquote");
+          const h = document.createElement("h3");
+          h.textContent = t(r.side);
+          const p = document.createElement("p");
+          p.textContent = t(r.text);
+          const c = document.createElement("cite");
+          c.textContent = r.source;
+          bq.append(h, p, c);
+          extra.append(bq);
+        }
       }
 
-      document.querySelectorAll("#board button").forEach((b) =>
-        b.addEventListener("click", () => guess(b.dataset.col, b.dataset.era))
+      $("r-atlas").href = "/#" + e.id;
+      const s = $("r-source");
+      if (e.url) {
+        s.href = e.url;
+        s.hidden = false;
+      } else s.hidden = true;
+      $("result").hidden = false;
+      $("next").textContent = "";
+      $("next").append(
+        Object.assign(document.createElement("span"), { className: "en", textContent: n >= deck.length ? "See how you did →" : "Next →" }),
+        Object.assign(document.createElement("span"), { className: "da", textContent: n >= deck.length ? "Se resultatet →" : "Næste →" })
       );
-      $("next").addEventListener("click", () => deal());
+    }
 
-      deck = shuffle([...rounds]).slice(0, TOTAL);
-      $("total").textContent = TOTAL;
+    function renderSequenceAnswer(ans) {
+      const wrap = $("sequence");
+      wrap.replaceChildren();
+      const ol = document.createElement("ol");
+      ol.className = "slots revealed";
+      // Re-rendered on a proportional year axis with the true years shown: the
+      // answer is not only the order but how far apart these actually were,
+      // which is exactly what a rank ordering hides.
+      const ys = cur.answer.map((e) => e.year);
+      const lo = Math.min(...ys), hi = Math.max(...ys) || lo + 1;
+      for (const e of cur.answer) {
+        const li = document.createElement("li");
+        li.className = "slot filled";
+        li.style.setProperty("--at", ((e.year - lo) / (hi - lo || 1)) * 100 + "%");
+        const b = document.createElement("b");
+        b.textContent = e.year;
+        const s = document.createElement("span");
+        s.textContent = t(e.title);
+        li.append(b, s);
+        if (ans && ans[cur.answer.indexOf(e)] === e.id) li.classList.add("answer");
+        ol.append(li);
+      }
+      wrap.append(ol);
+    }
+
+    function deal() {
+      if (n >= deck.length) return finish();
+      cur = deck[n];
+      n++;
+      answered = false;
+      placed = [null, null, null, null];
+      $("round").textContent = n;
+      $("result").hidden = true;
+      $("end").hidden = true;
+      $("card").hidden = false;
+      paint();
+    }
+
+    function finish() {
+      show(null);
+      $("card").hidden = true;
+      $("result").hidden = true;
+      const end = $("end");
+      end.hidden = false;
+
+      const max = deck.length * 100;
+      const per = {};
+      for (const l of log) {
+        const m = l.r.mode;
+        per[m] = per[m] || { n: 0, sum: 0 };
+        per[m].n++;
+        per[m].sum += l.adj;
+      }
+
+      // Persist what feeds a decision the game makes, and nothing else. No
+      // lifetime score, no streak, no timestamps — see the refusals below.
+      const seen = store.get("seen", {}), missed = store.get("missed", {});
+      const skill = store.get("skill", {});
+      for (const l of log) {
+        seen[l.r.ev.id] = 1;
+        if (l.pts < 0) missed[l.r.ev.id] = (missed[l.r.ev.id] || 0) + 1;
+        else if (missed[l.r.ev.id]) delete missed[l.r.ev.id];
+      }
+      for (const [m, v] of Object.entries(per)) {
+        const p = skill[m] || { n: 0, mean: 0 };
+        skill[m] = { n: p.n + v.n, mean: (p.mean * p.n + v.sum) / (p.n + v.n) };
+      }
+      const sessions = store.get("sessions", 0) + 1;
+      store.set("seen", seen);
+      store.set("missed", missed);
+      store.set("skill", skill);
+      store.set("sessions", sessions);
+
+      const h = document.createElement("h2");
+      h.textContent = L() === "en"
+        ? `${score} of ${max}`
+        : `${score} af ${max}`;
+      const sub = document.createElement("p");
+      sub.className = "endsub";
+      sub.textContent = L() === "en"
+        ? "Scored against chance: a player answering at random scores 0, not a consolation prize."
+        : "Målt mod tilfældet: den, der svarer tilfældigt, får 0 — ikke en trøstepræmie.";
+
+      const bars = document.createElement("dl");
+      bars.className = "skills";
+      for (const [m, v] of Object.entries(per)) {
+        const dt = document.createElement("dt");
+        dt.textContent = t(SKILL[m]);
+        const dd = document.createElement("dd");
+        const bar = document.createElement("i");
+        const pctv = Math.max(0, Math.round((v.sum / v.n) * 100));
+        bar.style.setProperty("--pct", pctv + "%");
+        const num = document.createElement("b");
+        num.textContent = `${pctv}%`;
+        const cnt = document.createElement("small");
+        cnt.textContent = ` · n=${v.n}`;
+        dd.append(bar, num, cnt);
+        bars.append(dt, dd);
+      }
+      end.replaceChildren(h, sub, bars);
+
+      // The review is the payload. An empty review screen wastes the most
+      // valuable moment in the session, so if nothing scored below zero, show
+      // what scored below half instead.
+      let review = log.filter((l) => l.pts < 0);
+      if (!review.length) review = log.filter((l) => l.pts < 50);
+      if (review.length) {
+        const rh = document.createElement("h3");
+        rh.textContent = L() === "en" ? "Worth another look" : "Værd at se på igen";
+        const ul = document.createElement("ul");
+        ul.className = "review";
+        for (const l of review) {
+          const li = document.createElement("li");
+          const a = document.createElement("a");
+          a.href = "/#" + l.r.ev.id;
+          a.textContent = `${l.r.ev.year} — ${t(l.r.ev.title)}`;
+          const s = document.createElement("small");
+          s.textContent = `${t(SKILL[l.r.mode])} · ${l.pts > 0 ? "+" : ""}${l.pts}`;
+          li.append(a, s);
+          if (l.r.ev.url) {
+            const src = document.createElement("a");
+            src.href = l.r.ev.url;
+            src.target = "_blank";
+            src.rel = "noopener";
+            src.className = "srclink";
+            src.textContent = L() === "en" ? "source" : "kilde";
+            li.append(src);
+          }
+          ul.append(li);
+        }
+        end.append(rh, ul);
+      }
+
+      const again = document.createElement("button");
+      again.className = "commit";
+      again.textContent = L() === "en" ? "Play again" : "Spil igen";
+      again.onclick = start;
+      const forget = document.createElement("button");
+      forget.className = "unsure";
+      forget.textContent = L() === "en" ? "Forget my progress" : "Glem mine data";
+      forget.onclick = () => {
+        store.clear();
+        forget.disabled = true;
+      };
+      end.append(again, forget);
+    }
+
+    function start() {
+      deck = build();
+      n = 0;
+      score = 0;
+      log = [];
+      $("score").textContent = 0;
+      $("total").textContent = deck.length;
       deal();
-    </script>
+    }
 
-    <style is:global>
-      :root {
-        --bg: #f4f1ea;
-        --ink: #241f1a;
-        --rule: #cfc7b8;
-        --paper: #fffdf8;
-      }
-      * {
-        box-sizing: border-box;
-      }
-      body {
-        margin: 0;
-        background: var(--bg);
-        color: var(--ink);
-        font: 16px/1.55 ui-serif, Georgia, serif;
-      }
-      body[data-lang="en"] .da,
-      body[data-lang="da"] .en {
-        display: none;
-      }
-      header,
-      main {
-        max-width: 62rem;
-        margin: 0 auto;
-        padding: 0 1.5rem;
-      }
-      header {
-        padding-top: 2rem;
-      }
-      h1 {
-        margin: 0;
-        font-size: clamp(1.8rem, 5vw, 2.6rem);
-        letter-spacing: -0.02em;
-      }
-      .lede {
-        color: #554e45;
-        max-width: 48ch;
-      }
-      .bar {
-        display: flex;
-        gap: 1.25rem;
-        align-items: center;
-        flex-wrap: wrap;
-        font: 500 13px/1 ui-sans-serif, system-ui, sans-serif;
-        border-top: 1px solid var(--rule);
-        border-bottom: 1px solid var(--rule);
-        padding: 0.75rem 0;
-        margin-top: 1rem;
-      }
-      .bar button,
-      .bar a {
-        font: inherit;
-        padding: 0.45rem 0.7rem;
-        border: 1px solid var(--rule);
-        background: var(--paper);
-        color: inherit;
-        border-radius: 3px;
-        cursor: pointer;
-        text-decoration: none;
-      }
-      .score {
-        display: inline-flex;
-        align-items: baseline;
-        gap: 0.4rem;
-        text-transform: uppercase;
-        letter-spacing: 0.09em;
-        color: #7a7266;
-      }
-      .score b {
-        color: var(--ink);
-        font-size: 15px;
-      }
-
-      #card {
-        background: var(--paper);
-        border: 1px solid var(--rule);
-        border-left: 4px solid #8a8276;
-        border-radius: 3px;
-        padding: 1.5rem;
-        margin: 1.75rem 0;
-        min-height: 7.5rem;
-      }
-      .clue {
-        margin: 0;
-        font-size: 1.15rem;
-      }
-      .hint {
-        margin: 0.75rem 0 0;
-        font: italic 0.95rem/1.5 ui-serif, Georgia, serif;
-        color: #6b6358;
-      }
-
-      .grid-wrap {
-        overflow-x: auto;
-      }
-      table {
-        border-collapse: collapse;
-        width: 100%;
-        min-width: 46rem;
-        /* Even cells: a wide "KRIG" target must not be an easier click than a
-           narrow one, or the board itself nudges the guess. */
-        table-layout: fixed;
-      }
-      thead th:first-child,
-      .rowhead {
-        width: 11rem;
-      }
-      thead th {
-        font: 600 10px/1.3 ui-sans-serif, system-ui, sans-serif;
-        letter-spacing: 0.12em;
-        color: #6b6358;
-        padding: 0 0.3rem 0.5rem;
-        vertical-align: bottom;
-      }
-      .rowhead {
-        text-align: right;
-        padding-right: 0.7rem;
-        font: 500 12px/1.3 ui-sans-serif, system-ui, sans-serif;
-        color: #554e45;
-        white-space: nowrap;
-      }
-      .rowhead i {
-        display: block;
-        font: 10px/1.3 ui-sans-serif, system-ui, sans-serif;
-        color: #a09789;
-        font-style: normal;
-      }
-      td {
-        padding: 2px;
-      }
-      td button {
-        display: block;
-        width: 100%;
-        height: 2.6rem;
-        border: 1px solid var(--rule);
-        background: var(--paper);
-        border-radius: 2px;
-        cursor: pointer;
-        transition: background 0.12s;
-      }
-      td button:hover:not(:disabled) {
-        background: #ece6d8;
-        border-color: #8a8276;
-      }
-      td button:disabled {
-        cursor: default;
-      }
-      td button.answer {
-        background: #2d6a4f;
-        border-color: #2d6a4f;
-      }
-      td button.wrong {
-        background: #b5442d;
-        border-color: #b5442d;
-      }
-
-      #result {
-        border-top: 1px solid var(--ink);
-        margin: 1.5rem 0 4rem;
-        padding-top: 1rem;
-      }
-      #result h2 {
-        margin: 0 0 0.3rem;
-        font-size: 1.4rem;
-      }
-      #r-verdict {
-        margin: 0;
-        font: 600 13px/1.4 ui-sans-serif, system-ui, sans-serif;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        color: #6b6358;
-      }
-      #r-detail {
-        margin: 0.2rem 0 0.8rem;
-        color: #554e45;
-      }
-      #r-source {
-        font-size: 13px;
-        color: #3d5a80;
-      }
-      #next {
-        display: block;
-        margin-top: 1rem;
-        font: 600 14px/1 ui-sans-serif, system-ui, sans-serif;
-        padding: 0.7rem 1.2rem;
-        border: 1px solid var(--ink);
-        background: var(--ink);
-        color: var(--paper);
-        border-radius: 3px;
-        cursor: pointer;
-      }
-    </style>
-  </body>
-</html>
+    // Delegated: the board is server-rendered once and reused every round, so
+    // the handler is bound once rather than re-bound on each deal.
+    $("board").addEventListener("click", (ev) => {
+      const b = ev.target.closest("button[data-col]");
+      if (b && !b.disabled) answer({ col: b.dataset.col, era: b.dataset.era });
+    });
+    $("next").addEventListener("click", () => deal());
+    // Repainting on a language switch must survive the end screen — the old
+    // version destroyed #clue in finish() and then dereferenced it here.
+    document.addEventListener("langchange", () => {
+      if (!$("end").hidden) return finish();
+      if (cur && !answered) paint();
+    });
+    start();
+  </script>
+</Base>

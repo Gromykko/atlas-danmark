@@ -1,0 +1,991 @@
+/* Atlas Danmark — the sheet.
+ *
+ * One stylesheet for both pages. They previously carried two copies of the
+ * palette that had already drifted: the atlas set 15px body text and the game
+ * set 16px, the game's clue card used a hardcoded grey where the atlas used a
+ * token, and neither had a focus style. Two copies of a decision is not a
+ * decision, it is two accidents.
+ *
+ * The direction is a survey sheet — a målebordsblad — rather than a document
+ * about maps. The plate already has a coordinate system: time down, theme
+ * across. It simply never drew it. So the graticule is drawn, and because the
+ * vertical scale is piecewise, the decade rules crowd through 360 Viking years
+ * and open out across the 1940s. The non-linear scale stops being a caveat and
+ * becomes the most visible property of the page.
+ *
+ * References: Videnskabernes Selskabs Kort (1766–1841) for the neat-line and
+ * the hairline as default mark weight; Priestley's New Chart of History (1769)
+ * for encoding doubt as a broken rule — he drew dotted line-ends where a date
+ * was uncertain, and wrote that a solid line there would be a lie. That is this
+ * project's rule 5, 257 years early.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* ---- surfaces ---- */
+  --sheet: #f4f1ea;
+  --stock: #fbf8f1; /* card stock: paper laid on paper, not holes cut in it */
+  --recess: #eee9dd;
+
+  /* ---- ink: three values, not six ----
+     #7a7266 (4.21:1), #8a8276 (3.73:1) and #a09789 (2.56:1) all failed AA, and
+     the worst of them drew the era span — the text disclosing that the scale is
+     non-linear, i.e. the project's own safety mechanism. One compliant token
+     replaces all three. */
+  --ink: #221d18;
+  --ink-2: #4e473e;
+  --ink-3: #6a6257; /* 5.32:1 on sheet, 5.66:1 on stock */
+
+  /* ---- rules, split by job ---- */
+  --rule: #948a7c; /* meaningful boundaries — must clear 3:1 (WCAG 1.4.11) */
+  --hair: #ddd6c6; /* decorative interior hairlines */
+  --grat: rgb(34 29 24 / 0.075); /* the graticule */
+
+  /* ---- one accent, one job ----
+     This atlas's single chromatic statement is about doubt, so doubt gets the
+     only accent: provisional records, unverified sources, focus. */
+  --accent: #a83a24;
+  --link: #2f5878;
+
+  /* ---- confidence as pattern, not hue ----
+     The rule breaks up as the evidence thins. Readable down a whole column at a
+     glance, which border-style at 1.58:1 never was. */
+  --dash-established: linear-gradient(var(--edge) 0 0);
+  --dash-sourced: repeating-linear-gradient(var(--edge) 0 12px, transparent 12px 16px);
+  --dash-contested: repeating-linear-gradient(var(--edge) 0 5px, transparent 5px 9px);
+  --dash-legendary: repeating-linear-gradient(var(--edge) 0 2px, transparent 2px 6px);
+
+  /* ---- type ---- */
+  --f-display: "Sitka Banner", "Hoefler Text", "Palatino Linotype", Palatino,
+    "Iowan Old Style", Georgia, serif;
+  --f-body: "Sitka Text", Charter, "Bitstream Charter", Constantia, "Iowan Old Style",
+    Georgia, serif;
+  --f-label: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system,
+    "Helvetica Neue", Arial, sans-serif;
+  --f-num: var(--f-label);
+
+  --t-display: clamp(26px, 4.5vw, 34px);
+  --t-title: 1.5rem;
+  --t-lead: 1.1875rem;
+  --t-body: 1rem;
+  --t-small: 0.875rem;
+  --t-card: 13px; /* frozen — the packer computes card height from this */
+  --t-cap: 0.75rem;
+  --t-label: 0.6875rem;
+  --t-micro: 0.625rem;
+
+  --lh-prose: 1.55;
+  --lh-apparatus: 1.3;
+  --lh-card: 17px; /* frozen — LINE in layout.ts */
+  --ls-cap-s: 0.14em;
+
+  --hairline: 1px;
+  --gutter: 96px;
+}
+@media (min-resolution: 2dppx) {
+  :root {
+    --hairline: 0.5px;
+  }
+}
+
+/* A chart room after hours, not an inverted webpage. The theme hues are inline
+   from the dataset and would die at 2:1 on graphite, so they are lifted toward
+   bone rather than left to fend for themselves. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --sheet: #191614;
+    --stock: #21201d;
+    --recess: #14120f;
+    --ink: #e9e0cf;
+    --ink-2: #c0b6a2;
+    --ink-3: #948b79;
+    --rule: #7d7360;
+    --hair: #35312a;
+    --grat: rgb(233 224 207 / 0.075);
+    --accent: #e0724f;
+    --link: #8fb6d4;
+    --tex: rgb(233 224 207 / 0.016);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+/* An author `display` beats the UA stylesheet's [hidden] rule, so a grid or
+   flex container with the attribute set stays on screen. */
+[hidden] {
+  display: none !important;
+}
+
+/* Laid paper has chain lines. Two crossed gradients at 1.6% alpha, fixed to the
+   viewport so the plate slides over the sheet instead of dragging it. */
+body {
+  --tex: rgb(34 29 24 / 0.016);
+  margin: 0;
+  background-color: var(--sheet);
+  background-image: repeating-linear-gradient(90deg, var(--tex) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(0deg, var(--tex) 0 1px, transparent 1px 22px);
+  background-attachment: fixed;
+  color: var(--ink);
+  font: var(--t-body) / var(--lh-prose) var(--f-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+:root[data-lang="en"] .da,
+:root[data-lang="da"] .en {
+  display: none;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--accent) 22%, transparent);
+  color: var(--ink);
+}
+:root {
+  caret-color: var(--accent);
+}
+
+.vh {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.skip {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 20;
+  background: var(--ink);
+  color: var(--sheet);
+  padding: 0.6rem 1rem;
+}
+.skip:focus {
+  left: 0;
+}
+
+/* One rule for every uppercase label on both pages. There were fourteen
+   hand-tuned copies differing only in whether the letterspacing was 0.08 or
+   0.12 — seven semantic ranks with one visual treatment and no system. Rank is
+   carried by rule and position instead. */
+.colhead,
+.meta > *,
+.readings h3,
+.figures dt,
+dialog footer h3,
+.filter > span,
+.score,
+.legend summary,
+.legend h2,
+#board thead th,
+.verdict {
+  font-family: var(--f-label);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: var(--t-micro);
+  line-height: var(--lh-apparatus);
+  letter-spacing: var(--ls-cap-s);
+  /* Letterspacing eats the word gap; give it back or FAITH & IDEAS reads as one
+     word. It also appends a trailing space to the last glyph, so claw that back
+     or every cap label is optically indented from the right. */
+  word-spacing: 0.14em;
+  margin-right: -0.14em;
+  color: var(--ink-3);
+}
+
+/* Numerals are soundings: on a chart they are always a different face from the
+   names. Georgia and Constantia default to old-style figures, which is charming
+   in prose and wrong for a column of dates that must scan vertically. */
+.yr,
+.era b,
+.scalebar,
+.score b,
+.rowhead i,
+.figures dd,
+h1 small,
+.folio,
+.count {
+  font-family: var(--f-num);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+.yr,
+h1 small,
+.rowhead i,
+.folio {
+  white-space: nowrap;
+}
+
+:where(button, a, select, input, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------- masthead */
+
+header {
+  padding: 1.75rem clamp(1rem, 4vw, 3rem) 0.9rem;
+  max-width: 78ch;
+}
+h1 {
+  margin: 0;
+  font: 400 var(--t-display) / 1.1 var(--f-display);
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+h1 small {
+  font-size: 0.4em;
+  letter-spacing: 0.1em;
+  color: var(--ink-3);
+  margin-left: 0.6em;
+}
+.lede {
+  color: var(--ink-2);
+  margin: 0.45rem 0 0.7rem;
+  font-size: var(--t-small);
+  text-wrap: pretty;
+  max-width: 62ch;
+}
+.audit {
+  margin: 0 0 0.9rem;
+  padding: 0.5rem 0 0.5rem 0.8rem;
+  border-left: 2px solid var(--rule);
+  font: var(--t-cap) / 1.65 var(--f-label);
+  color: var(--ink-3);
+  max-width: 66ch;
+}
+.audit b {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.controls,
+.bar {
+  display: flex;
+  gap: 0.9rem;
+  align-items: center;
+  flex-wrap: wrap;
+  font: 500 var(--t-cap) / 1 var(--f-label);
+}
+.controls button,
+.controls select,
+.controls input,
+.controls a,
+.bar button,
+.bar a {
+  font: inherit;
+  padding: 0.5rem 0.75rem;
+  border: var(--hairline) solid var(--rule);
+  border-radius: 0;
+  background: var(--stock);
+  color: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 90ms linear, border-color 90ms linear;
+}
+.controls button:hover,
+.bar button:hover,
+.bar a:hover {
+  border-color: var(--ink);
+  background: var(--recess);
+}
+.controls input {
+  cursor: text;
+  min-width: 15ch;
+}
+/* The <select> was inheriting text-transform:uppercase from .filter, so every
+   theme name in the dropdown shouted. */
+.filter {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  text-transform: none;
+}
+.controls select {
+  appearance: none;
+  padding-right: 1.9rem;
+  background: linear-gradient(45deg, transparent 50%, var(--ink-3) 50%) calc(100% - 13px)
+      calc(50% - 1px) / 5px 5px no-repeat,
+    linear-gradient(-45deg, var(--ink-3) 50%, transparent 50%) calc(100% - 8px) calc(50% - 1px) /
+      5px 5px no-repeat,
+    var(--stock);
+}
+.play {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--sheet);
+}
+.play:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.count {
+  font: 500 var(--t-cap) / 1 var(--f-num);
+  color: var(--ink-3);
+}
+
+/* ------------------------------------------------------------------ legend */
+
+.legend {
+  margin: 1rem 0 0;
+  border-top: var(--hairline) solid var(--hair);
+  border-bottom: var(--hairline) solid var(--ink);
+  padding: 0.55rem 0 0.7rem;
+}
+.legend summary {
+  cursor: pointer;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--ink-2);
+}
+.legend summary::-webkit-details-marker {
+  display: none;
+}
+.legend summary::before {
+  content: "✳";
+  font-size: 1.1em;
+  color: var(--ink-3);
+  transition: transform 120ms ease;
+}
+.legend[open] summary::before {
+  transform: rotate(45deg);
+}
+.legend-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 0.9rem clamp(1.5rem, 4vw, 3rem);
+  margin-top: 0.8rem;
+}
+.legend h2 {
+  margin: 0 0 0.5rem;
+}
+.legend p,
+.key li {
+  font: var(--t-cap) / 1.55 var(--f-body);
+  color: var(--ink-2);
+  margin: 0;
+  text-wrap: pretty;
+}
+.key {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.key li {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+  margin-bottom: 0.42rem;
+}
+.key .g {
+  font-family: var(--f-display);
+  font-style: normal;
+  color: var(--ink);
+}
+/* The key draws the marks themselves, from the same custom properties the
+   cards use — so a dash pattern cannot change and leave the key stale. */
+.sw {
+  flex: none;
+  width: 3px;
+  height: 16px;
+  margin-top: 2px;
+  --edge: var(--ink-3);
+  background-image: var(--dash, var(--dash-established));
+  background-size: 3px 100%;
+  background-repeat: no-repeat;
+}
+.sw.c-sourced {
+  --dash: var(--dash-sourced);
+}
+.sw.c-contested {
+  --dash: var(--dash-contested);
+}
+.sw.c-legendary {
+  --dash: var(--dash-legendary);
+}
+.sw.colour {
+  --edge: #7b4b94;
+}
+.sw.prov {
+  background: none;
+  border-left: 3px solid var(--accent);
+}
+.sw.bar {
+  background: none;
+  border-left: 2px solid var(--ink-3);
+}
+.sw.lead {
+  background: none;
+  border-left: var(--hairline) dotted var(--ink-3);
+}
+/* Two samples of the graticule side by side, at two decade rates — the key
+   showing the reader the exact phenomenon they are about to see on the plate. */
+.sw-grat {
+  flex: none;
+  display: block;
+  width: 46px;
+  height: 34px;
+  margin-top: 1px;
+  border: var(--hairline) solid var(--hair);
+  background-image: repeating-linear-gradient(to bottom, var(--grat) 0 1px, transparent 1px 5px),
+    repeating-linear-gradient(to bottom, var(--grat) 0 1px, transparent 1px 16px);
+  background-size: 48% 100%, 48% 100%;
+  background-position: 0 0, 100% 0;
+  background-repeat: no-repeat;
+}
+
+/* ------------------------------------------------------------------- plate */
+
+.plate-scroll {
+  overflow: auto;
+  padding: 0 clamp(1rem, 4vw, 3rem) 4rem;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule) var(--sheet);
+}
+/* The framed pane. overflow-x:auto alone forces overflow-y to compute to auto,
+   so .plate-scroll was already a scroll container on both axes — with an
+   unconstrained height, meaning its scrollTop was permanently 0 and the sticky
+   column heads never once stuck. Giving the pane a real height fixes that and
+   supplies the neat-line in the same move. */
+@media (min-width: 1000px) {
+  html {
+    height: 100%;
+  }
+  body {
+    height: 100svh;
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: auto 1fr;
+  }
+  .plate-scroll {
+    min-height: 0;
+    border-top: var(--hairline) solid var(--ink);
+  }
+}
+.plate {
+  position: relative;
+  min-width: 1330px;
+  display: flex;
+}
+.plate-body {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+/* The axis is sticky, not absolute: panning right to columns 5–7 used to scroll
+   it out of view, and with a piecewise scale a vertical position with no axis
+   beside it carries no information at all. */
+.axis {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  flex: 0 0 var(--gutter);
+  height: var(--h);
+  margin-top: 2.6rem;
+  background: var(--sheet);
+}
+.era {
+  position: absolute;
+  left: 0;
+  width: calc(var(--gutter) - 8px);
+  border-top: var(--hairline) solid var(--ink);
+  box-shadow: 0 var(--hairline) 0 0 var(--hair); /* the engraver's doubled rule */
+  padding-top: 0.3rem;
+  font: var(--t-label) / var(--lh-apparatus) var(--f-label);
+  color: var(--ink-3);
+}
+.era b {
+  display: block;
+  font-size: var(--t-cap);
+  letter-spacing: 0.04em;
+  color: var(--ink);
+}
+/* 100 years drawn at this band's own rate. Two bands side by side make the
+   compression something you see rather than a division you perform. */
+.scalebar {
+  display: block;
+  font-size: 9px;
+  font-style: normal;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  margin-top: 0.3rem;
+  padding-left: 6px;
+  border-left: var(--hairline) solid var(--ink-3);
+  height: var(--bar);
+  max-height: 100%;
+  position: relative;
+}
+.scalebar::before,
+.scalebar::after {
+  content: "";
+  position: absolute;
+  left: -1px;
+  width: 5px;
+  height: 0;
+  border-top: var(--hairline) solid var(--ink-3);
+}
+.scalebar::before {
+  top: 0;
+}
+.scalebar::after {
+  bottom: 0;
+}
+
+/* THE GRATICULE. One rule per decade, at each band's own rate — so the rules
+   crowd through the thin Viking record and open out across the 1940s. The
+   reader does not have to be told the scale changes; they watch it change, the
+   way a Mercator chart shows its own distortion in the spacing of its
+   parallels. Plus one rule per column boundary. */
+.graticule {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background-image: repeating-linear-gradient(
+      to bottom,
+      var(--grat) 0 var(--hairline),
+      transparent var(--hairline) calc(1000% / var(--yrs))
+    ),
+    repeating-linear-gradient(
+      to right,
+      var(--hair) 0 var(--hairline),
+      transparent var(--hairline) calc(100% / var(--cols))
+    );
+  border-top: var(--hairline) solid var(--ink);
+}
+.band:nth-child(even) {
+  background-color: rgb(34 29 24 / 0.018);
+}
+@media (prefers-color-scheme: dark) {
+  .band:nth-child(even) {
+    background-color: rgb(233 224 207 / 0.02);
+  }
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), 1fr);
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--sheet);
+  border-bottom: var(--hairline) solid var(--ink);
+  padding: 0.6rem 0;
+}
+.colhead {
+  padding: 0 0.5rem;
+  border-left: var(--hairline) solid var(--hair);
+  hyphens: auto;
+}
+.colhead:first-child {
+  border-left-color: transparent;
+}
+.field {
+  position: relative;
+  height: var(--h);
+  z-index: 1;
+}
+
+/* -------------------------------------------------------------------- card */
+
+.ev {
+  position: absolute;
+  left: calc(var(--col) * (100% / var(--cols)));
+  width: calc(100% / var(--cols));
+  padding-right: 0.75rem;
+  transition: opacity 0.15s;
+  /* Theme hues are inline from the dataset; several fail 3:1 as a rule against
+     the stock (#c2882c is 2.89:1). Mixing a common ink in lifts the pale ochres
+     over the line and gives fifteen unrelated hues a shared component, which is
+     why a multi-colour plate coheres instead of looking like a spilled legend. */
+  --edge: color-mix(in oklab, var(--c) 88%, var(--ink));
+}
+@media (prefers-color-scheme: dark) {
+  .ev {
+    --edge: color-mix(in oklab, var(--c) 58%, #efe3cd);
+  }
+}
+.ev.dim {
+  opacity: 0.13;
+}
+.marker {
+  display: block;
+  position: relative;
+  width: 100%;
+  height: var(--card); /* the height the packer assumed — enforced, not hoped */
+  overflow: hidden;
+  text-align: left;
+  padding: 0.35rem 0.5rem;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 0;
+  border: var(--hairline) solid var(--rule);
+  border-left: 3px solid transparent; /* same 3px, now a canvas for the dash */
+  background-color: var(--stock);
+  background-image: var(--dash, var(--dash-established));
+  background-size: 3px 100%;
+  background-position: 0 0;
+  background-repeat: no-repeat;
+  box-shadow: 1px 1px 0 0 var(--hair); /* engraved offset, not a Material lift */
+  transition: box-shadow 90ms linear, background-color 90ms linear;
+}
+.marker.c-sourced {
+  --dash: var(--dash-sourced);
+}
+.marker.c-contested {
+  --dash: var(--dash-contested);
+}
+.marker.c-legendary {
+  --dash: var(--dash-legendary);
+  font-style: italic;
+}
+.marker:hover {
+  background-color: var(--sheet);
+  /* inset, so nothing reflows and no title gains a line it wasn't budgeted */
+  box-shadow: inset 3px 0 0 0 var(--edge), 1px 1px 0 0 var(--rule);
+  z-index: 2;
+}
+.marker:focus-visible {
+  z-index: 3;
+}
+.yr {
+  display: block;
+  font: 600 var(--t-micro) / 1 var(--f-num);
+  letter-spacing: 0.05em;
+  margin-right: -0.05em;
+  color: var(--ink-3);
+}
+.ttl {
+  font-size: var(--t-card);
+  line-height: var(--lh-card);
+  margin-top: 0.15rem;
+  /* Danish supplies "Det konstitutionelle Danmark" into a 176px column. */
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  display: -webkit-box;
+  -webkit-line-clamp: var(--lines);
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+:root[data-lang="en"] .ttl.da,
+:root[data-lang="da"] .ttl.en {
+  display: none;
+}
+.theme-tag {
+  display: none;
+  font: 600 9px/1.4 var(--f-label);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+/* ‡ is the apparatus criticus double dagger — the mark a critical edition uses
+   for a variant reading. It means exactly "two readings" and nothing else.
+   Absolute, not floated: a float reserves inline space in the lines it crosses,
+   so it stole width from the title and could force a line the packer had not
+   budgeted for — the precise disagreement between packer and renderer that the
+   fixed card height exists to prevent. */
+.flag {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  font: 400 12px/1 var(--f-display);
+  font-style: normal;
+  color: var(--ink-3);
+}
+.leader {
+  position: absolute;
+  left: -6px;
+  top: calc(0px - var(--off));
+  height: var(--off);
+  width: 0;
+  border-left: var(--hairline) dotted var(--edge);
+  opacity: 0.85;
+}
+.leader::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -3px;
+  width: 8px;
+  height: 0;
+  border-top: var(--hairline) solid var(--edge);
+}
+.leader::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 6px;
+  height: 0;
+  border-top: var(--hairline) dotted var(--edge);
+}
+.span {
+  position: absolute;
+  left: -11px; /* was -5px, in the same channel as .leader */
+  top: 4px;
+  width: 2px;
+  height: var(--span);
+  background: var(--edge);
+  opacity: 0.6;
+}
+
+/* ------------------------------------------------------------------ dialog */
+
+dialog {
+  max-width: 64ch;
+  width: calc(100vw - 2rem);
+  max-height: 88svh;
+  overflow: auto;
+  border: var(--hairline) solid var(--ink);
+  border-radius: 0;
+  background: var(--stock);
+  color: var(--ink);
+  padding: 1.75rem 1.9rem;
+  box-shadow: 0 0 0 4px var(--stock), 0 0 0 5px var(--ink); /* doubled neat-line */
+}
+dialog::backdrop {
+  background: rgb(30 26 22 / 0.5);
+}
+dialog > form {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+}
+dialog > form button {
+  border: var(--hairline) solid var(--rule);
+  background: none;
+  /* 17×26px was under the 24×24 minimum, on the dialog's first focus stop. */
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  font: 1.2rem/1 var(--f-label);
+  color: var(--ink-3);
+  cursor: pointer;
+}
+dialog > form button:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+/* You clicked a card to see its evidence and the date vanished from the
+   interface. The folio puts it back, at plate scale. */
+.folio {
+  display: block;
+  font: 400 2rem/1 var(--f-num);
+  letter-spacing: 0.02em;
+  color: var(--ink-3);
+  margin-bottom: 0.1rem;
+}
+dialog h2 {
+  margin: 0 0 0.55rem;
+  font: 400 var(--t-title) / 1.2 var(--f-display);
+  letter-spacing: -0.012em;
+  text-wrap: balance;
+  padding-right: 2.5rem;
+}
+dialog p {
+  text-wrap: pretty;
+}
+.meta {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin: 0 0 1rem;
+}
+.meta > * {
+  padding: 0.3rem 0.5rem;
+  border: var(--hairline) solid var(--rule);
+  color: var(--ink-3);
+}
+/* The chip is cloned into the dialog, outside any .ev, so it derives its own
+   edge ink from the theme colour it carries inline. */
+.chip {
+  --edge: color-mix(in oklab, var(--c) 88%, var(--ink));
+  border-left: 3px solid var(--edge);
+}
+@media (prefers-color-scheme: dark) {
+  .chip {
+    --edge: color-mix(in oklab, var(--c) 58%, #efe3cd);
+  }
+}
+.conf::before {
+  font-family: var(--f-display);
+  margin-right: 0.35em;
+}
+.conf.c-contested::before {
+  content: "‡";
+}
+.conf.c-legendary::before {
+  content: "?";
+  font-style: italic;
+}
+.prov {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.readings blockquote {
+  margin: 0 0 0.8rem;
+  padding-left: 0.9rem;
+  border-left: 2px solid var(--rule);
+}
+.readings h3 {
+  margin: 0 0 0.2rem;
+}
+.figures {
+  margin: 1rem 0;
+  border-top: var(--hairline) solid var(--rule);
+  padding-top: 0.8rem;
+}
+.figures dd {
+  margin: 0.1rem 0 0.7rem;
+  font-size: var(--t-lead);
+}
+.figures dd small {
+  display: block;
+  font: var(--t-cap) / 1.5 var(--f-body);
+  color: var(--ink-2);
+  font-variant-numeric: normal;
+  margin-top: 0.2rem;
+}
+cite {
+  display: block;
+  font: italic var(--t-cap) / 1.4 var(--f-body);
+  color: var(--ink-3);
+  margin-top: 0.15rem;
+}
+dialog footer {
+  border-top: var(--hairline) solid var(--rule);
+  margin-top: 1rem;
+  padding-top: 0.8rem;
+}
+dialog footer h3 {
+  margin: 0 0 0.5rem;
+}
+dialog footer ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: var(--t-cap);
+}
+a {
+  color: var(--link);
+}
+.unver {
+  color: var(--accent);
+  margin-left: 0.4rem;
+  font-size: var(--t-micro);
+}
+.links {
+  margin: 0.7rem 0 0;
+}
+/* 47 documented relations rendered as unclickable grey text at the bottom of a
+   panel. Following the chain is what a reader actually wants to do. */
+.rel {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: var(--t-cap) / 1.45 var(--f-body);
+  color: var(--ink-2);
+  margin-top: 0.25rem;
+  background: none;
+  border: 0;
+  border-left: 2px solid var(--hair);
+  padding: 0.22rem 0 0.22rem 0.55rem;
+  cursor: pointer;
+}
+.rel:hover {
+  color: var(--ink);
+  border-left-color: var(--ink);
+}
+
+/* -------------------------------------------------- narrow sheet, and print
+ *
+ * Below the plate's calibrated width, show a different artefact rather than a
+ * squeezed one. The cards are already emitted in ascending-year order, so flow
+ * order is the correct reading order and `position: static` alone yields a
+ * chronological gazetteer. A plate is a large-format object; the small-format
+ * edition of an atlas has always been a gazetteer, not a shrunken plate. This
+ * doubles as the print stylesheet for exactly the same reason. */
+@media print, (max-width: 999px) {
+  body {
+    height: auto;
+    overflow: visible;
+    display: block;
+  }
+  .plate-scroll {
+    overflow: visible;
+    max-height: none;
+    padding: 0 1rem 2rem;
+  }
+  .plate {
+    min-width: 0;
+    display: block;
+  }
+  .columns,
+  .axis,
+  .graticule,
+  .leader,
+  .span {
+    display: none;
+  }
+  .field {
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .ev {
+    position: static;
+    width: 100%;
+    padding-right: 0;
+  }
+  .marker {
+    height: auto;
+  }
+  .ttl {
+    display: block;
+    -webkit-line-clamp: none;
+  }
+  .theme-tag {
+    display: block;
+    margin-top: 0.2rem;
+  }
+}
+@media print {
+  body {
+    background: #fff;
+  }
+  .controls,
+  .legend,
+  .skip,
+  .bar,
+  dialog {
+    display: none;
+  }
+  .marker {
+    box-shadow: none;
+    break-inside: avoid;
+    print-color-adjust: exact;
+  }
+  a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 9px;
+    color: #555;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+}

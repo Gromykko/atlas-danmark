@@ -249,7 +249,9 @@ export const atlas: Atlas = {
         en: "Havn receives formal merchant-town status and stays under the Bishop of Roskilde for roughly the next 250 years. Erik of Pomerania makes it the permanent royal residence in the early 1400s.",
         da: "Havn får formelle købstadsrettigheder og forbliver under Roskildebispen i omtrent de næste 250 år. Erik af Pommern gør byen til fast kongeligt residensby i begyndelsen af 1400-tallet."
       },
-      figures: [{ label: { en: "Population", da: "Indbyggertal" }, value: { en: "c. 42,000 (1672) → c. 100,000 (c. 1800)", da: "ca. 42.000 (1672) → ca. 100.000 (ca. 1800)" }, source: "danmarkshistorien.lex.dk, 'København'" }],
+      figures: [{ label: { en: "Population", da: "Indbyggertal" }, value: { en: "c. 42,000 (1672) → c. 100,000 (c. 1800)", da: "ca. 42.000 (1672) → ca. 100.000 (ca. 1800)" },
+        basis: { en: "The fortified city inside the ramparts, which stood until the 1850s. Neither count includes the settlements outside them, so the pair shares a boundary — but it is a boundary, not the modern municipality.", da: "Den befæstede by inden for voldene, som stod til 1850'erne. Ingen af tallene medregner bebyggelsen uden for dem, så de to deler afgrænsning — men det er en afgrænsning, ikke den nuværende kommune." },
+        source: "danmarkshistorien.lex.dk, 'København'" }],
       lat: 55.676, lon: 12.568, place: "København",
       sources: [{ label: "danmarkshistorien.lex.dk (Aarhus University) — København", url: "https://danmarkshistorien.lex.dk/K%C3%B8benhavn" }]
     },

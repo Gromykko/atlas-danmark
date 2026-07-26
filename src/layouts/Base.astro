@@ -1,0 +1,71 @@
+---
+// The shell every page shares: head, design tokens, and the language switch.
+//
+// Both pages carried their own copy of the palette, the `.en`/`.da` toggle CSS
+// and the switch handler. Worse, they disagreed — the atlas opened in English
+// and the game opened in Danish, and switching language on one page was
+// forgotten the moment you followed a link to the other.
+
+interface Props {
+  title: string;
+  description: string;
+  /** Language the page renders in before JS runs. */
+  lang?: "en" | "da";
+}
+const { title, description, lang = "da" } = Astro.props;
+---
+
+<html lang={lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta name="color-scheme" content="light dark" />
+    <!-- The stored language is applied before first paint, so a Danish reader
+         never sees a frame of English. -->
+    <script is:inline>
+      try {
+        const l = localStorage.getItem("atlas-lang");
+        if (l === "en" || l === "da") {
+          document.documentElement.lang = l;
+          document.documentElement.dataset.lang = l;
+        }
+      } catch {}
+    </script>
+  </head>
+  <body>
+    <a class="skip" href="#main">
+      <span class="en">Skip to content</span><span class="da">Spring til indhold</span>
+    </a>
+    <slot />
+
+    <script>
+      // One switch for the whole site. The choice is remembered and applies on
+      // every page, which is the only reason it is worth having.
+      const root = document.documentElement;
+      const set = (l: string) => {
+        root.lang = l;
+        root.dataset.lang = l;
+        try {
+          localStorage.setItem("atlas-lang", l);
+        } catch {}
+        // <option> cannot hold per-language spans; swap its text directly.
+        document
+          .querySelectorAll<HTMLOptionElement>("option[data-en]")
+          .forEach((o) => (o.textContent = o.dataset[l]!));
+        document.dispatchEvent(new CustomEvent("langchange", { detail: l }));
+      };
+      set(root.dataset.lang ?? root.lang ?? "da");
+      document
+        .querySelectorAll<HTMLElement>("[data-lang-toggle]")
+        .forEach((b) =>
+          b.addEventListener("click", () => set(root.dataset.lang === "en" ? "da" : "en"))
+        );
+    </script>
+  </body>
+</html>

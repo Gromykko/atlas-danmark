@@ -6,6 +6,31 @@
 // a leader line back to the true year so a displaced card never reads as a
 // silent claim about a date it does not have.
 
+/**
+ * Card geometry.
+ *
+ * The packer guarantees no two cards in a column overlap. That guarantee is
+ * worth exactly nothing unless the renderer agrees with the packer about how
+ * tall a card is — which is why the height is computed here, enforced in CSS
+ * (fixed height + line clamp) rather than predicted and hoped for, and imported
+ * by the build gate so it proves the layout that actually ships. An earlier
+ * version estimated height from character count and let the browser lay out
+ * freely; the two disagreed and cards overlapped in three places.
+ *
+ * CHARS_PER_LINE is calibrated to the 1330px plate width set in CSS. Change one
+ * and you must change the other.
+ */
+export const CHARS_PER_LINE = 22;
+const LINE = 17;
+const CHROME = 25; // padding + border + the year line
+export const CARD_GAP = 6;
+
+export const titleLines = (title: { en: string; da: string }): number =>
+  Math.min(3, Math.max(1, Math.ceil(Math.max(title.en.length, title.da.length) / CHARS_PER_LINE)));
+
+export const cardHeight = (title: { en: string; da: string }): number =>
+  CHROME + titleLines(title) * LINE;
+
 export interface PackItem {
   id: string;
   /** Column key — packing is independent per column. */

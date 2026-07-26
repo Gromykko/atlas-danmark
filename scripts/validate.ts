@@ -5,11 +5,14 @@
 
 import { atlas } from "../src/data/atlas.ts";
 import { isProvisional, isWikipedia, type AtlasEvent, type Lang } from "../src/data/schema.ts";
-import { pack, timeScale } from "../src/data/layout.ts";
+import { cardHeight } from "../src/data/layout.ts";
+import { audit, columnOf, plate } from "../src/data/derived.ts";
+import { quizVisibleStrings, redact } from "../src/data/quiz.ts";
 
 const LANGS: Lang[] = ["en", "da"];
 const errors: string[] = [];
 const warnings: string[] = [];
+const sameSource: string[] = [];
 
 const themeIds = new Set(atlas.themes.map((t) => t.id));
 const columnIds = new Set(atlas.columns.map((c) => c.id));
@@ -68,12 +71,29 @@ for (const e of atlas.events as AtlasEvent[]) {
   if (e.confidence === "legendary" && !/legend|myth|sagn|tradition|story/i.test(e.summary.en))
     warnings.push(`${at}: marked legendary but the summary does not say so to the reader`);
 
+  // Rule 4, second order — "two readings" is satisfiable by one encyclopaedia
+  // summarising a debate with itself. That is one account formatted as two, and
+  // it is the failure mode this rule exists to prevent. Warned, not failed:
+  // where the disagreement really is recorded in a single reference work, the
+  // record is still honest — it just is not independent.
+  if (e.confidence === "contested" && (e.readings?.length ?? 0) >= 2) {
+    const cited = new Set(e.readings!.map((r) => r.source.trim()));
+    if (cited.size === 1) sameSource.push(e.id);
+  }
+
   for (const f of e.figures ?? []) {
     bothLangs(f.label, `${at} figure label`);
     // Rule 0 — a figure's VALUE is reader-visible text too. It carries prose and
     // locale number/date formatting, so it is bilingual like everything else.
     bothLangs(f.value, `${at} figure value`);
     if (!f.source?.trim()) errors.push(`${at}: figure "${f.label?.en}" has no source`);
+    // Rule 3 is the project's stated worst-possible error and was the only rule
+    // with no machine check, because "basis is required when comparability is at
+    // stake" is not a condition a program can evaluate. A population count is the
+    // case where it is always at stake — Denmark's territory changes twice in the
+    // series — so at least that much is checkable.
+    if (!f.basis && /population|befolkning|folketal|indbygger/i.test(f.label?.en + " " + f.label?.da))
+      warnings.push(`${at}: figure "${f.label?.en}" counts people but states no territorial basis`);
   }
 
   if ((e.lat === undefined) !== (e.lon === undefined))
@@ -112,51 +132,28 @@ if (errors.length) {
 // the worst-displaced card sits from its true year: a card pushed decades down
 // the plate is misinformation, even if nothing visibly collides.
 {
-  const H = 42;
-  const GAP = 6;
-  const themeCol = new Map(atlas.themes.map((t) => [t.id, t.column]));
-  const sorted = [...atlas.events].sort((a, b) => a.year - b.year);
-
-  // Mirror the page: each decade sized to its densest column, then pack.
-  const decades = [];
-  for (let d = Math.floor(atlas.meta.minYear / 10) * 10; d < atlas.meta.maxYear; d += 10)
-    decades.push({ id: `d${d}`, from: d, to: d + 10 });
-
-  const needs = new Map<string, number>();
-  for (const d of decades) {
-    const stacks = new Map<string, number>();
-    for (const e of sorted)
-      if (e.year >= d.from && e.year < d.to) {
-        const c = themeCol.get(e.theme)!;
-        stacks.set(c, (stacks.get(c) ?? 0) + H + GAP);
-      }
-    needs.set(d.id, Math.max(0, ...stacks.values()));
-  }
-  const { y, bands } = timeScale(decades, needs);
-
-  const items = sorted.map((e) => ({
-    id: e.id,
-    col: themeCol.get(e.theme)!,
-    want: y(e.year),
-    height: H
-  }));
-  const placed = pack(items, GAP);
+  // Not a mirror of the page — the same function the page calls. A gate that
+  // rebuilds the layout its own way can only prove things about its own version.
+  const { events: sorted, scale, placed } = plate();
+  const { bands } = scale;
 
   // A band whose rate is far off the plate average is a scale break the axis
   // must be showing the reader.
   const avg = bands.reduce((s, b) => s + b.height, 0) / (atlas.meta.maxYear - atlas.meta.minYear);
   const steep = bands.filter((b) => b.rate > avg * 2.5).map((b) => b.id);
 
-  const byCol = new Map<string, { top: number; id: string }[]>();
-  for (const it of items) {
-    const p = placed.get(it.id)!;
-    if (p.offset < -0.001) throw new Error(`layout: ${it.id} placed ABOVE its year`);
-    (byCol.get(it.col) ?? byCol.set(it.col, []).get(it.col)!).push({ top: p.top, id: it.id });
+  const byCol = new Map<string, { top: number; bottom: number; id: string }[]>();
+  for (const e of sorted) {
+    const p = placed.get(e.id)!;
+    if (p.offset < -0.001) throw new Error(`layout: ${e.id} placed ABOVE its year`);
+    const col = columnOf(e);
+    const row = { top: p.top, bottom: p.top + cardHeight(e.title), id: e.id };
+    (byCol.get(col) ?? byCol.set(col, []).get(col)!).push(row);
   }
   for (const [col, cards] of byCol) {
     cards.sort((a, b) => a.top - b.top);
     for (let i = 1; i < cards.length; i++)
-      if (cards[i].top < cards[i - 1].top + H)
+      if (cards[i].top < cards[i - 1].bottom)
         throw new Error(`layout: ${cards[i].id} overlaps ${cards[i - 1].id} in column ${col}`);
   }
 
@@ -174,6 +171,38 @@ if (errors.length) {
     console.warn(`WARN:  layout: "${worst[0]}" sits ${worstYears.toFixed(0)} yr below its date`);
 }
 
+// The quiz clue must not contain its own answer. Before the redaction rule was
+// tightened this was live for 32 of 107 events, 13 of which printed their exact
+// year in the first clause of the prompt. Checked on the built strings so that
+// every event added to the atlas is covered without anyone remembering to.
+{
+  const LEAK = /\b(?:1\d{3}|20[0-3]\d|[6-9]\d{2})\b|\b\d{3,4}-?tallet\b|\b\d{3,4}s\b|\b\d{1,2}\.?\s*århundrede\b/gi;
+  // A regnal number dates a fragment to the decade for any Danish reader, so it
+  // is an answer leak even though it contains no year. Both notations, and the
+  // genitive of each: "Christian IV", "Christian 4.", "Christian 3.s hær".
+  const REGNAL = /\b[A-ZÆØÅ][a-zæøå]{2,}\s+(?:[IVXL]{1,5}|\d{1,2}\.)(?:'?s)?(?=[\s,.;:)'’]|$)/g;
+  const leaks: string[] = [];
+  for (const e of atlas.events)
+    for (const t of quizVisibleStrings(e)) {
+      const r = redact(t);
+      for (const m of r.matchAll(REGNAL))
+        leaks.push(`${e.id}: regnal "${m[0]}" survives redaction`);
+      for (const m of r.matchAll(LEAK)) {
+        // A digit group inside a preserved figure ("620,000") is not a date.
+        const after = r.slice(m.index + m[0].length);
+        const before = r.slice(0, m.index);
+        if (/^[.,]\d{3}/.test(after) || /[\d.,]$/.test(before)) continue;
+        leaks.push(`${e.id}: "${m[0]}" survives redaction in "${r.slice(Math.max(0, m.index - 30), m.index + 30)}"`);
+      }
+    }
+  if (leaks.length) {
+    console.error(leaks.map((l) => `ERROR: quiz leak — ${l}`).join("\n"));
+    console.error(`\nVALIDATION FAILED — ${leaks.length} clue(s) contain their own answer.`);
+    process.exit(1);
+  }
+  console.log(`    quiz: no answer leaks across ${atlas.events.length} events' clues, titles, figures and readings`);
+}
+
 const pct = ((provisional.length / atlas.events.length) * 100).toFixed(1);
 console.log(
   `OK: ${atlas.events.length} events · ${atlas.themes.length} themes in ${atlas.columns.length} columns · every event sourced, EN+DA complete.`
@@ -181,3 +210,18 @@ console.log(
 console.log(
   `    sourcing debt: ${provisional.length} Wikipedia-only (${pct}%) · ${partWiki.length} partly Wikipedia · ${unverified.length} citing an unverified source`
 );
+
+// The same audit the page publishes. Printing it here too means the number a
+// reader sees and the number the build sees cannot drift apart.
+const a = audit();
+console.log(
+  `    independence: ${a.singleSource}/${a.events} rest on a single citation · ` +
+    `${a.topHostShare}% of ${a.urls} URLs are ${a.topHost} · ` +
+    `${a.contestedOneSource}/${a.contested} contested records cite one work for both readings`
+);
+if (sameSource.length)
+  console.warn(
+    `WARN:  ${sameSource.length} contested record(s) cite the same source for every reading — ` +
+      `rule 4 is satisfied in form, not in evidence: ${sameSource.slice(0, 6).join(", ")}` +
+      (sameSource.length > 6 ? ` +${sameSource.length - 6} more` : "")
+  );
