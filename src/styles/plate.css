@@ -452,11 +452,15 @@ h1 small {
    unconstrained height, meaning its scrollTop was permanently 0 and the sticky
    column heads never once stuck. Giving the pane a real height fixes that and
    supplies the neat-line in the same move. */
+/* Scoped to the page that actually has a plate. Applied to every `body` it
+   also pinned the game page to one viewport, and `overflow:hidden` on body
+   propagates to the viewport, so the end screen's review list would have been
+   unreachable on desktop. */
 @media (min-width: 1000px) {
-  html {
+  html:has(.plate-scroll) {
     height: 100%;
   }
-  body {
+  body:has(.plate-scroll) {
     height: 100svh;
     overflow: hidden;
     display: grid;

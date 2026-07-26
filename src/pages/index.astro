@@ -171,7 +171,10 @@ const centuryBar = (from: number) => {
 
   <main id="plate" class="plate-scroll">
     <div class="plate" style={`--h:${height}px; --cols:${atlas.columns.length}`}>
-      <div class="axis" aria-hidden="true">
+      {/* Readable, not hidden: the era names and their spans are the only
+          period context a screen-reader user gets, since a card announces its
+          year but not which age that year falls in. */}
+      <div class="axis" aria-label="Eras / Perioder">
         {
           atlas.eras.map((era) => (
             <div class="era" style={`top:${scale.y(era.from)}px; height:${scale.y(era.to) - scale.y(era.from)}px`}>

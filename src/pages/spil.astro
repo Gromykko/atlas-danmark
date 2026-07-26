@@ -67,7 +67,8 @@ const data = quizData();
       <table id="board">
         <thead>
           <tr>
-            <th scope="col"></th>
+            {/* The corner is not a header for anything. */}
+            <td></td>
             {
               data.columns.map((c) => (
                 <th scope="col">

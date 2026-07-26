@@ -52,6 +52,29 @@ note that they were enumerated in colonial registers as property rather than as
 inhabitants — a figure that is not comparable with the Danish population series
 and must never be drawn beside it.
 
+## Where the frame is the argument
+
+Themes are not neutral containers. The Danish slave trade, its ban, and the 1848
+abolition were themed `colonies` and therefore drawn in the **BORDERS & EMPIRE**
+column — filing enslaved people as a question of territory, in an atlas whose
+fourth rule exists to stop one national story being chosen in silence. They now
+carry an `enslavement` theme in the **PEOPLE** column. The transfers of territory
+themselves — Estonia in 1346, the sale of the West Indies, Greenland's changing
+status — remain under `colonies`, because that is what those records are about.
+
+Two related decisions, recorded rather than resolved:
+
+- **The periodisation is a convention, and the atlas uses it as an axis.** The
+  `lindisfarne` record argues that "Viking Age" is a 19th-century coinage that
+  nobody alive then used, while the axis prints it as a period and the game
+  grades against it. The key says so, and links to the record that makes the
+  argument. That is disclosure, not a resolution.
+- **The belief column carries 6 records across 1,336 years.** It stays. An almost
+  empty column between 1536 and 1814 is a true statement about what a
+  political-national source base records, and merging it into culture would erase
+  a finding to make the graphic look busier. The key notes that white space is
+  data.
+
 ## Pages
 
 - `/` — the plate. Confidence is visible in the rule down each card's edge: it

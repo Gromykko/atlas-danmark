@@ -101,8 +101,6 @@ for (const e of atlas.events as AtlasEvent[]) {
   if (e.lat !== undefined && (e.lat < 54 || e.lat > 58.5 || e.lon! < 7 || e.lon! > 16))
     warnings.push(`${at}: coordinates outside Denmark's frame — intended?`);
 
-  if (e.image && !e.image.credit?.trim())
-    errors.push(`${at}: image without a credit line`);
 }
 
 for (const l of atlas.links) {

@@ -35,6 +35,13 @@ export const atlas: Atlas = {
     { id: "colonies",   column: "land",     color: "#9a6a1f", name: { en: "Colonies",        da: "Kolonier" } },
     { id: "people",     column: "people",   color: "#c2882c", name: { en: "Population",      da: "Befolkning" } },
     { id: "migration",  column: "people",   color: "#a8762b", name: { en: "Migration",       da: "Migration" } },
+    // Enslavement is filed with people, not with borders. The trade, its ban and
+    // its abolition were themed `colonies` and therefore drawn in the BORDERS &
+    // EMPIRE column, which frames the enslaved as a question of territory. The
+    // transfers of territory themselves — Estonia, the sale of the West Indies,
+    // Greenland's changing status — stay under colonies, because that is what
+    // those records are about.
+    { id: "enslavement", column: "people",  color: "#6d4534", name: { en: "Enslavement",     da: "Slaveri" } },
     { id: "war",        column: "conflict", color: "#8c2f39", name: { en: "War",             da: "Krig" } },
     { id: "resistance", column: "conflict", color: "#5e3040", name: { en: "Resistance",      da: "Modstand" } },
     { id: "religion",   column: "belief",   color: "#4a5d7e", name: { en: "Religion",        da: "Religion" } },
@@ -495,7 +502,7 @@ export const atlas: Atlas = {
       sources: [{ label: "danmarkshistorien.lex.dk (Aarhus University) — Frederiksborgfreden, 3. juni 1720", url: "https://danmarkshistorien.lex.dk/Frederiksborgfreden,_3._juni_1720" }]
     },
     {
-      id: "slavetrade", year: 1660, endYear: 1848, theme: "colonies", confidence: "established",
+      id: "slavetrade", year: 1660, endYear: 1848, theme: "enslavement", confidence: "established",
       title: { en: "The Danish slave trade", da: "Den danske slavehandel" },
       summary: {
         en: "Danish ships carry enslaved Africans from the Gold Coast to St Thomas, St John and St Croix on an 18-month triangular route. Mortality on the crossing is severe, and many more die in their first year in the colonies.",
@@ -538,7 +545,7 @@ export const atlas: Atlas = {
       sources: [{ label: "danmarkshistorien.lex.dk (Aarhus University) — Johann Friedrich Struensee, 1737-1772", url: "https://danmarkshistorien.lex.dk/Johann_Friedrich_Struensee,_1737-1772" }]
     },
     {
-      id: "slavetradeban", year: 1792, theme: "colonies", confidence: "established",
+      id: "slavetradeban", year: 1792, theme: "enslavement", confidence: "established",
       title: { en: "The ban that increased the trade", da: "Forbuddet der øgede handelen" },
       summary: {
         en: "Denmark becomes the first state to legislate a ban on transatlantic slave trading under its flag — but with a ten-year delay, during which the state actively subsidises imports so planters can build a self-reproducing enslaved population. More people were trafficked in that decade than any other.",
@@ -620,7 +627,7 @@ export const atlas: Atlas = {
       sources: [{ label: "danmarkshistorien.lex.dk (Aarhus University) — Den grundtvigske folkehøjskole, ca. 1830-1920", url: "https://danmarkshistorien.lex.dk/Den_grundtvigske_folkeh%C3%B8jskole,_ca._1830-1920" }]
     },
     {
-      id: "abolition1848", year: 1848, theme: "colonies", confidence: "contested",
+      id: "abolition1848", year: 1848, theme: "enslavement", confidence: "contested",
       title: { en: "Slavery abolished in the West Indies", da: "Slaveriet ophæves i Vestindien" },
       summary: {
         en: "Governor Peter von Scholten declares the enslaved free with immediate effect, after a rebellion at Frederiksted. The often-repeated claim that Denmark was first to abolish slavery is treated by the source as a myth.",

@@ -30,7 +30,7 @@ export type ColumnId =
 export type ThemeId =
   | "power" | "law"
   | "borders" | "colonies"
-  | "people" | "migration"
+  | "people" | "migration" | "enslavement"
   | "war" | "resistance"
   | "religion" | "ideas"
   | "economy" | "welfare"
@@ -107,14 +107,11 @@ export interface AtlasEvent {
   place?: string;
   lat?: number;
   lon?: number;
-  image?: {
-    file: string;
-    credit: string;
-    url: string;
-    /** True when the image does not actually depict this moment — a later
-     *  photograph, a reconstruction, a related site. Shown to the reader. */
-    illustrative?: boolean;
-  };
+  // An `image` block lived here with a credit rule and an `illustrative` flag
+  // for pictures that do not depict the moment they sit beside. It had zero
+  // instances in 107 records, so it was a schema field, a validation branch and
+  // an editorial policy for a feature that never existed. Reinstate it — with
+  // the credit check — if and when a record actually needs a picture.
 }
 
 /** A documented relationship between two events. Neutral phrasing only:
