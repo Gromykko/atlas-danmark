@@ -83,7 +83,7 @@
   --ls-cap-s: 0.14em;
 
   --hairline: 1px;
-  --gutter: 96px;
+  --gutter: 80px;
 }
 @media (min-resolution: 2dppx) {
   :root {
@@ -458,7 +458,7 @@ h1 small {
   overflow: auto;
   /* The floor is tight on purpose: 0.5rem of gutter is what lets a 1366px
      laptop hold all seven columns instead of dropping to the gazetteer. */
-  padding: 0 clamp(1rem, 3vw, 3rem) 4rem;
+  padding: 0 clamp(0.75rem, 2.5vw, 3rem) 4rem;
   overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: var(--rule) var(--sheet);
@@ -472,7 +472,7 @@ h1 small {
    also pinned the game page to one viewport, and `overflow:hidden` on body
    propagates to the viewport, so the end screen's review list would have been
    unreachable on desktop. */
-@media (min-width: 1440px) {
+@media (min-width: 1260px) {
   html:has(.plate-scroll) {
     height: 100%;
   }
@@ -489,7 +489,7 @@ h1 small {
 }
 .plate {
   position: relative;
-  min-width: 1330px;
+  min-width: 1180px;
   display: flex;
 }
 .plate-body {
@@ -524,6 +524,21 @@ h1 small {
   font-size: var(--t-cap);
   letter-spacing: 0.04em;
   color: var(--ink);
+}
+/* Year ticks between the era labels, so the rail always says where you are. */
+.tick {
+  position: absolute;
+  left: 0;
+  width: calc(var(--gutter) - 8px);
+  padding-top: 0.15rem;
+  border-top: var(--hairline) solid var(--hair);
+  font: var(--t-micro) / 1 var(--f-num);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-style: normal;
+  letter-spacing: 0.05em;
+  color: var(--ink-3);
+  text-align: right;
+  padding-right: 0.35rem;
 }
 /* 100 years drawn at this band's own rate. Two bands side by side make the
    compression something you see rather than a division you perform. */
@@ -937,7 +952,7 @@ a {
  * chronological gazetteer. A plate is a large-format object; the small-format
  * edition of an atlas has always been a gazetteer, not a shrunken plate. This
  * doubles as the print stylesheet for exactly the same reason. */
-@media print, (max-width: 1439px) {
+@media print, (max-width: 1259px) {
   body {
     height: auto;
     overflow: visible;

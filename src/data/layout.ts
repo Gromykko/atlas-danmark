@@ -27,7 +27,7 @@
  *
  * Verified by rendering all 107 cards and asserting no title overflows its box.
  */
-export const CHARS_PER_LINE = 19;
+export const CHARS_PER_LINE = 16;
 const LINE = 17;
 const CHROME = 25; // padding + border + the year line
 export const CARD_GAP = 6;

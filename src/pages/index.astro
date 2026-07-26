@@ -37,6 +37,24 @@ const centuryBar = (from: number) => {
   const b = scale.bands.find((x) => from >= x.from && from < x.to) ?? scale.bands[0];
   return Math.round(100 * b.rate);
 };
+
+// Year ticks down the axis. Seven era labels across six thousand pixels left
+// most of the rail blank, so for most of a scroll there was nothing at all
+// saying where in time you were. Stepping by decade and dropping any tick that
+// would crowd its neighbour lets the scale set its own density: the compressed
+// Viking band prints a century or two, the 1940s print most of their decades.
+const ticks: { year: number; y: number }[] = [];
+{
+  let last = -99;
+  const eraTops = atlas.eras.map((e) => scale.y(e.from));
+  for (let year = Math.ceil(minYear / 10) * 10; year <= maxYear; year += 10) {
+    const y = scale.y(year);
+    if (y - last < 26) continue;
+    if (eraTops.some((t) => Math.abs(t - y) < 30)) continue; // the era label owns that space
+    ticks.push({ year, y });
+    last = y;
+  }
+}
 ---
 
 <Base
@@ -175,6 +193,7 @@ const centuryBar = (from: number) => {
           period context a screen-reader user gets, since a card announces its
           year but not which age that year falls in. */}
       <div class="axis" aria-label="Eras / Perioder">
+        {ticks.map((t) => <i class="tick" style={`top:${t.y}px`} aria-hidden="true">{t.year}</i>)}
         {
           atlas.eras.map((era) => (
             <div class="era" style={`top:${scale.y(era.from)}px; height:${scale.y(era.to) - scale.y(era.from)}px`}>
