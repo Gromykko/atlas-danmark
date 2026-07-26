@@ -23,13 +23,13 @@ header {
 .bar {
   border-top: var(--hairline) solid var(--hair);
   border-bottom: var(--hairline) solid var(--ink);
-  padding: 0.7rem 0;
-  margin-top: 0.9rem;
+  padding: 0.75rem 0;
+  margin-top: 1rem;
 }
 .score {
   display: inline-flex;
   align-items: baseline;
-  gap: 0.35rem;
+  gap: 0.25rem;
   color: var(--ink-3);
 }
 .score b {
@@ -49,8 +49,8 @@ header {
   border-left: 3px solid var(--ink-3);
   border-radius: 0;
   box-shadow: 2px 2px 0 0 var(--hair);
-  padding: 1.5rem 1.6rem;
-  margin: 1.6rem 0;
+  padding: 1.5rem 1.5rem;
+  margin: 1.5rem 0;
   min-height: 7rem;
 }
 /* Sequence rounds carry no clue of their own — the cards are the question — so
@@ -73,13 +73,13 @@ header {
   opacity: 0.7;
 }
 .prompt {
-  margin: 0 0 0.7rem;
+  margin: 0 0 0.75rem;
   font: 600 var(--t-micro) / var(--lh-apparatus) var(--f-label);
   text-transform: uppercase;
   letter-spacing: var(--ls-cap-s);
   word-spacing: 0.14em;
   color: var(--ink-3);
-  padding-right: 5.5rem;
+  padding-right: 5rem;
 }
 .clue {
   margin: 0;
@@ -89,7 +89,7 @@ header {
   text-wrap: pretty;
 }
 .hint {
-  margin: 0.85rem 0 0;
+  margin: 0.75rem 0 0;
   font: italic var(--t-small) / 1.5 var(--f-body);
   color: var(--ink-2);
 }
@@ -150,7 +150,7 @@ thead th:first-child,
   width: 10rem;
 }
 thead th {
-  padding: 0 0 0.4rem;
+  padding: 0 0 0.5rem;
   vertical-align: bottom;
   hyphens: auto;
 }
@@ -161,7 +161,7 @@ thead th {
   display: block;
   width: 100%;
   min-height: 3.2rem;
-  padding: 0.4rem 0.3rem;
+  padding: 0.5rem 0.25rem;
   border: var(--hairline) solid transparent;
   border-radius: 0;
   background: none;
@@ -194,7 +194,7 @@ thead th {
 }
 /* Which step you are on, in words. */
 .step {
-  margin: 0 0 0.6rem;
+  margin: 0 0 0.5rem;
   font: 600 var(--t-micro) / 1 var(--f-label);
   text-transform: uppercase;
   letter-spacing: var(--ls-cap-s);
@@ -203,7 +203,7 @@ thead th {
 }
 .rowhead {
   text-align: right;
-  padding: 0 0.7rem 0 0;
+  padding: 0 0.75rem 0 0;
   border-top: var(--hairline) solid var(--ink);
   font: 500 var(--t-cap) / 1.25 var(--f-label);
   color: var(--ink-2);
@@ -303,7 +303,7 @@ td button.wrong {
 .choice {
   text-align: left;
   font: var(--t-body) / 1.45 var(--f-body);
-  padding: 0.85rem 1rem;
+  padding: 0.75rem 1rem;
   border: var(--hairline) solid var(--rule);
   border-left: 3px solid var(--hair);
   border-radius: 0;
@@ -343,8 +343,8 @@ td button.wrong {
 .unsure {
   justify-self: start;
   font: var(--t-cap) / 1 var(--f-label);
-  padding: 0.55rem 0.8rem;
-  margin-top: 0.4rem;
+  padding: 0.5rem 0.75rem;
+  margin-top: 0.5rem;
   border: var(--hairline) dashed var(--rule);
   border-radius: 0;
   background: none;
@@ -364,18 +364,18 @@ td button.wrong {
 .slots {
   list-style: none;
   counter-reset: slot;
-  margin: 0 0 1.1rem;
+  margin: 0 0 1rem;
   padding: 0;
   display: grid;
-  gap: 0.35rem;
+  gap: 0.25rem;
 }
 .slot {
   counter-increment: slot;
   display: flex;
   align-items: baseline;
-  gap: 0.7rem;
+  gap: 0.75rem;
   min-height: 2.6rem;
-  padding: 0.5rem 0.8rem;
+  padding: 0.5rem 0.75rem;
   border: var(--hairline) dashed var(--rule);
   background: none;
   color: var(--ink-3);
@@ -405,7 +405,7 @@ td button.wrong {
 .slots.revealed .slot {
   cursor: default;
   position: relative;
-  padding-left: 4.6rem;
+  padding-left: 4.5rem;
   background-image: linear-gradient(
     to right,
     transparent calc(var(--at) - 1px),
@@ -413,8 +413,8 @@ td button.wrong {
     var(--rule) var(--at),
     transparent var(--at)
   );
-  background-position: 4.6rem 0;
-  background-size: calc(100% - 5.4rem) 100%;
+  background-position: 4.5rem 0;
+  background-size: calc(100% - 5.5rem) 100%;
   background-repeat: no-repeat;
 }
 .slots.revealed .slot b {
@@ -432,7 +432,7 @@ td button.wrong {
 }
 .seqcard {
   text-align: left;
-  padding: 0.75rem 0.9rem;
+  padding: 0.75rem 1rem;
   border: var(--hairline) solid var(--rule);
   border-left: 3px solid var(--ink-3);
   border-radius: 0;
@@ -459,7 +459,7 @@ td button.wrong {
 }
 .commit {
   font: 600 var(--t-small) / 1 var(--f-label);
-  padding: 0.7rem 1.1rem;
+  padding: 0.75rem 1rem;
   border: var(--hairline) solid var(--ink);
   border-radius: 0;
   background: var(--ink);
@@ -489,19 +489,19 @@ td button.wrong {
   text-wrap: balance;
 }
 #r-teach {
-  margin: 0 0 0.9rem;
+  margin: 0 0 1rem;
   color: var(--ink-2);
   max-width: 62ch;
   text-wrap: pretty;
 }
 #r-extra blockquote {
-  margin: 0 0 0.8rem;
-  padding-left: 0.9rem;
+  margin: 0 0 0.75rem;
+  padding-left: 1rem;
   border-left: 2px solid var(--rule);
   max-width: 62ch;
 }
 #r-extra h3 {
-  margin: 0 0 0.2rem;
+  margin: 0 0 0.25rem;
   font: 600 var(--t-label) / 1.2 var(--f-label);
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -513,13 +513,13 @@ td button.wrong {
 }
 .r-links {
   display: flex;
-  gap: 1.2rem;
+  gap: 1.25rem;
   font-size: var(--t-cap);
   margin: 0 0 1rem;
 }
 #next {
   font: 600 var(--t-small) / 1 var(--f-label);
-  padding: 0.7rem 1.2rem;
+  padding: 0.75rem 1.25rem;
   border: var(--hairline) solid var(--ink);
   border-radius: 0;
   background: var(--ink);
@@ -536,7 +536,7 @@ td button.wrong {
 #end {
   border-top: var(--hairline) solid var(--ink);
   margin: 1.5rem 0 4rem;
-  padding-top: 1.2rem;
+  padding-top: 1.25rem;
 }
 #end h2 {
   margin: 0;
@@ -550,8 +550,8 @@ td button.wrong {
 .scale {
   display: grid;
   grid-template-columns: max-content max-content;
-  gap: 0.15rem 1rem;
-  margin: 0.7rem 0 0.6rem;
+  gap: 0.125rem 1rem;
+  margin: 0.75rem 0 0.5rem;
 }
 .scale dt {
   font: 600 var(--t-micro) / 1.4 var(--f-label);
@@ -571,7 +571,7 @@ td button.wrong {
   font-weight: 600;
 }
 .endsub {
-  margin: 0.3rem 0 1.6rem;
+  margin: 0.25rem 0 1.5rem;
   color: var(--ink-2);
   font-size: var(--t-small);
   max-width: 54ch;
@@ -581,14 +581,14 @@ td button.wrong {
   font: 400 var(--t-title) / 1.2 var(--f-display);
   letter-spacing: -0.012em;
   text-wrap: balance;
-  padding-right: 5.5rem;
+  padding-right: 5rem;
 }
 .skills {
   display: grid;
   grid-template-columns: max-content 1fr;
-  gap: 0.4rem 1rem;
+  gap: 0.5rem 1rem;
   align-items: center;
-  margin: 0 0 1.8rem;
+  margin: 0 0 1.75rem;
   max-width: 40rem;
 }
 .skills dt {
@@ -602,7 +602,7 @@ td button.wrong {
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.5rem;
 }
 .skills dd i {
   flex: 1;
@@ -625,19 +625,19 @@ td button.wrong {
   letter-spacing: var(--ls-cap-s);
   word-spacing: 0.14em;
   color: var(--ink-3);
-  margin: 0 0 0.6rem;
+  margin: 0 0 0.5rem;
 }
 .review {
   list-style: none;
-  margin: 0 0 1.8rem;
+  margin: 0 0 1.75rem;
   padding: 0;
   max-width: 46rem;
 }
 .review li {
   display: flex;
   align-items: baseline;
-  gap: 0.6rem;
-  padding: 0.45rem 0;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
   border-bottom: var(--hairline) solid var(--hair);
   font-size: var(--t-small);
 }

@@ -82,8 +82,16 @@
   --lh-card: 17px; /* frozen — LINE in layout.ts */
   --ls-cap-s: 0.14em;
 
+  /* Spacing is a 4px grid, with 2px as the single half-step for hairline
+     gaps and optical nudges. Values are in rem so the rhythm scales with
+     the reader's font size. Before this there were 92 ad-hoc values —
+     0.35, 0.42, 0.55, 0.85, 1.9, 2.6rem — and no system at all. */
   --hairline: 1px;
   --gutter: 80px;
+  /* The column-head band. The axis is offset by exactly this, so the two
+     cannot drift when a head like KULTUR & VIDENSKAB wraps to two lines —
+     which a hand-tuned 2.6rem offset silently got wrong. */
+  --head: 3rem;
 }
 @media (min-resolution: 2dppx) {
   :root {
@@ -162,7 +170,7 @@ body {
   z-index: 20;
   background: var(--ink);
   color: var(--sheet);
-  padding: 0.6rem 1rem;
+  padding: 0.5rem 1rem;
 }
 .skip:focus {
   left: 0;
@@ -202,7 +210,6 @@ dialog footer h3,
    in prose and wrong for a column of dates that must scan vertically. */
 .yr,
 .era b,
-.scalebar,
 .score b,
 .rowhead i,
 .figures dd,
@@ -266,18 +273,18 @@ h1 small {
 }
 .lede {
   color: var(--ink-2);
-  margin: 0.35rem 0 0.55rem;
+  margin: 0.25rem 0 0.5rem;
   font-size: var(--t-small);
   text-wrap: pretty;
   max-width: 78ch;
 }
 /* The sheet's particulars, set as a data block rather than a paragraph. */
 .audit {
-  margin: 0.35rem 0 0;
-  padding-left: 0.85rem;
+  margin: 0.25rem 0 0;
+  padding-left: 0.75rem;
   border-left: 2px solid var(--rule);
   display: grid;
-  gap: 0.15rem 1.2rem;
+  gap: 0.125rem 1.25rem;
   align-content: start;
 }
 .audit > div {
@@ -304,7 +311,7 @@ h1 small {
   color: var(--ink-3);
 }
 .audit-note {
-  margin: 0.35rem 0 0;
+  margin: 0.25rem 0 0;
   font: italic 11px/1.4 var(--f-body);
   color: var(--ink-3);
 }
@@ -326,7 +333,7 @@ header > .legend {
 .controls,
 .bar {
   display: flex;
-  gap: 0.9rem;
+  gap: 1rem;
   align-items: center;
   flex-wrap: wrap;
   font: 500 var(--t-cap) / 1 var(--f-label);
@@ -367,7 +374,7 @@ header > .legend {
 }
 .controls select {
   appearance: none;
-  padding-right: 1.9rem;
+  padding-right: 2rem;
   background: linear-gradient(45deg, transparent 50%, var(--ink-3) 50%) calc(100% - 13px)
       calc(50% - 1px) / 5px 5px no-repeat,
     linear-gradient(-45deg, var(--ink-3) 50%, transparent 50%) calc(100% - 8px) calc(50% - 1px) /
@@ -391,17 +398,17 @@ header > .legend {
 /* ------------------------------------------------------------------ legend */
 
 .legend {
-  margin: 0.7rem 0 0;
+  margin: 0.75rem 0 0;
   border-top: var(--hairline) solid var(--hair);
   border-bottom: var(--hairline) solid var(--ink);
-  padding: 0.55rem 0 0.7rem;
+  padding: 0.5rem 0 0.75rem;
 }
 .legend summary {
   cursor: pointer;
   list-style: none;
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.5rem;
   color: var(--ink-2);
 }
 .legend summary::-webkit-details-marker {
@@ -420,7 +427,7 @@ header > .legend {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
   gap: 0.9rem clamp(1.5rem, 4vw, 3rem);
-  margin-top: 0.8rem;
+  margin-top: 0.75rem;
 }
 .legend h2 {
   margin: 0 0 0.5rem;
@@ -439,9 +446,9 @@ header > .legend {
 }
 .key li {
   display: flex;
-  gap: 0.55rem;
+  gap: 0.5rem;
   align-items: flex-start;
-  margin-bottom: 0.42rem;
+  margin-bottom: 0.5rem;
 }
 .key .g {
   font-family: var(--f-display);
@@ -491,7 +498,7 @@ header > .legend {
   display: block;
   width: 46px;
   height: 34px;
-  margin-top: 1px;
+  margin-top: 2px;
   border: var(--hairline) solid var(--hair);
   background-image: repeating-linear-gradient(to bottom, var(--grat) 0 1px, transparent 1px 5px),
     repeating-linear-gradient(to bottom, var(--grat) 0 1px, transparent 1px 16px);
@@ -554,7 +561,7 @@ header > .legend {
   z-index: 4;
   flex: 0 0 var(--gutter);
   height: var(--h);
-  margin-top: 2.6rem;
+  margin-top: var(--head);
   background: var(--sheet);
 }
 .era {
@@ -563,7 +570,7 @@ header > .legend {
   width: calc(var(--gutter) - 8px);
   border-top: var(--hairline) solid var(--ink);
   box-shadow: 0 var(--hairline) 0 0 var(--hair); /* the engraver's doubled rule */
-  padding-top: 0.3rem;
+  padding-top: 0.25rem;
   font: var(--t-label) / var(--lh-apparatus) var(--f-label);
   color: var(--ink-3);
 }
@@ -578,7 +585,7 @@ header > .legend {
   position: absolute;
   left: 0;
   width: calc(var(--gutter) - 8px);
-  padding-top: 0.15rem;
+  padding-top: 0.25rem;
   border-top: var(--hairline) solid var(--hair);
   font: var(--t-micro) / 1 var(--f-num);
   font-variant-numeric: tabular-nums lining-nums;
@@ -586,37 +593,7 @@ header > .legend {
   letter-spacing: 0.05em;
   color: var(--ink-3);
   text-align: right;
-  padding-right: 0.35rem;
-}
-/* 100 years drawn at this band's own rate. Two bands side by side make the
-   compression something you see rather than a division you perform. */
-.scalebar {
-  display: block;
-  font-size: 9px;
-  font-style: normal;
-  letter-spacing: 0.04em;
-  color: var(--ink-3);
-  margin-top: 0.3rem;
-  padding-left: 6px;
-  border-left: var(--hairline) solid var(--ink-3);
-  height: var(--bar);
-  max-height: 100%;
-  position: relative;
-}
-.scalebar::before,
-.scalebar::after {
-  content: "";
-  position: absolute;
-  left: -1px;
-  width: 5px;
-  height: 0;
-  border-top: var(--hairline) solid var(--ink-3);
-}
-.scalebar::before {
-  top: 0;
-}
-.scalebar::after {
-  bottom: 0;
+  padding-right: 0.5rem;
 }
 
 /* THE GRATICULE. One rule per decade, at each band's own rate — so the rules
@@ -666,7 +643,9 @@ header > .legend {
   z-index: 3;
   background: var(--sheet);
   border-bottom: var(--hairline) solid var(--ink);
-  padding: 0.6rem 0;
+  height: var(--head);
+  align-items: end;
+  padding: 0 0 0.5rem;
 }
 .colhead {
   padding: 0 0.5rem;
@@ -711,7 +690,7 @@ header > .legend {
   height: var(--card); /* the height the packer assumed — enforced, not hoped */
   overflow: hidden;
   text-align: left;
-  padding: 0.35rem 0.5rem;
+  padding: 0.25rem 0.5rem;
   font: inherit;
   color: inherit;
   cursor: pointer;
@@ -747,6 +726,7 @@ header > .legend {
 }
 .yr {
   display: block;
+  padding-right: 16px; /* reserve the corner the ‡ / ? flag is pinned into */
   font: 600 var(--t-micro) / 1 var(--f-num);
   letter-spacing: 0.05em;
   margin-right: -0.05em;
@@ -755,7 +735,7 @@ header > .legend {
 .ttl {
   font-size: var(--t-card);
   line-height: var(--lh-card);
-  margin-top: 0.15rem;
+  margin-top: 0.125rem;
   /* Danish supplies "Det konstitutionelle Danmark" into a 176px column. */
   hyphens: auto;
   -webkit-hyphens: auto;
@@ -837,7 +817,7 @@ dialog {
   border-radius: 0;
   background: var(--stock);
   color: var(--ink);
-  padding: 1.75rem 1.9rem;
+  padding: 1.75rem 2rem;
   box-shadow: 0 0 0 4px var(--stock), 0 0 0 5px var(--ink); /* doubled neat-line */
 }
 dialog::backdrop {
@@ -866,13 +846,14 @@ dialog > form button:hover {
    interface. The folio puts it back, at plate scale. */
 .folio {
   display: block;
+  padding-right: 2.5rem; /* clears the close control, as dialog h2 does */
   font: 400 2rem/1 var(--f-num);
   letter-spacing: 0.02em;
   color: var(--ink-3);
-  margin-bottom: 0.1rem;
+  margin-bottom: 0.125rem;
 }
 dialog h2 {
-  margin: 0 0 0.55rem;
+  margin: 0 0 0.5rem;
   font: 400 var(--t-title) / 1.2 var(--f-display);
   letter-spacing: -0.012em;
   text-wrap: balance;
@@ -883,12 +864,12 @@ dialog p {
 }
 .meta {
   display: flex;
-  gap: 0.4rem;
+  gap: 0.5rem;
   flex-wrap: wrap;
   margin: 0 0 1rem;
 }
 .meta > * {
-  padding: 0.3rem 0.5rem;
+  padding: 0.25rem 0.5rem;
   border: var(--hairline) solid var(--rule);
   color: var(--ink-3);
 }
@@ -919,20 +900,20 @@ dialog p {
   color: var(--accent);
 }
 .readings blockquote {
-  margin: 0 0 0.8rem;
-  padding-left: 0.9rem;
+  margin: 0 0 0.75rem;
+  padding-left: 1rem;
   border-left: 2px solid var(--rule);
 }
 .readings h3 {
-  margin: 0 0 0.2rem;
+  margin: 0 0 0.25rem;
 }
 .figures {
   margin: 1rem 0;
   border-top: var(--hairline) solid var(--rule);
-  padding-top: 0.8rem;
+  padding-top: 0.75rem;
 }
 .figures dd {
-  margin: 0.1rem 0 0.7rem;
+  margin: 0.125rem 0 0.75rem;
   font-size: var(--t-lead);
 }
 .figures dd small {
@@ -940,25 +921,25 @@ dialog p {
   font: var(--t-cap) / 1.5 var(--f-body);
   color: var(--ink-2);
   font-variant-numeric: normal;
-  margin-top: 0.2rem;
+  margin-top: 0.25rem;
 }
 cite {
   display: block;
   font: italic var(--t-cap) / 1.4 var(--f-body);
   color: var(--ink-3);
-  margin-top: 0.15rem;
+  margin-top: 0.125rem;
 }
 dialog footer {
   border-top: var(--hairline) solid var(--rule);
   margin-top: 1rem;
-  padding-top: 0.8rem;
+  padding-top: 0.75rem;
 }
 dialog footer h3 {
   margin: 0 0 0.5rem;
 }
 dialog footer ul {
   margin: 0;
-  padding-left: 1.1rem;
+  padding-left: 1rem;
   font-size: var(--t-cap);
 }
 a {
@@ -966,11 +947,11 @@ a {
 }
 .unver {
   color: var(--accent);
-  margin-left: 0.4rem;
+  margin-left: 0.5rem;
   font-size: var(--t-micro);
 }
 .links {
-  margin: 0.7rem 0 0;
+  margin: 0.75rem 0 0;
 }
 /* 47 documented relations rendered as unclickable grey text at the bottom of a
    panel. Following the chain is what a reader actually wants to do. */
@@ -984,7 +965,7 @@ a {
   background: none;
   border: 0;
   border-left: 2px solid var(--hair);
-  padding: 0.22rem 0 0.22rem 0.55rem;
+  padding: 0.25rem 0 0.25rem 0.5rem;
   cursor: pointer;
 }
 .rel:hover {
@@ -1026,7 +1007,7 @@ a {
     height: auto;
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
+    gap: 0.5rem;
   }
   .ev {
     position: static;
@@ -1042,7 +1023,7 @@ a {
   }
   .theme-tag {
     display: block;
-    margin-top: 0.2rem;
+    margin-top: 0.25rem;
   }
 }
 @media print {
@@ -1063,7 +1044,7 @@ a {
   }
   a[href^="http"]::after {
     content: " (" attr(href) ")";
-    font-size: 9px;
+    font-size: var(--t-micro);
     color: #555;
   }
 }

@@ -29,15 +29,6 @@ const linked = new Set(atlas.links.flatMap((l) => [l.from, l.to]));
 const byId = new Map(events.map((e) => [e.id, e]));
 const a = audit();
 
-// A century, measured in each band's own pixels. The axis used to print the
-// span — "360 yr" — which makes the compression *recoverable by division*
-// rather than visible. A scale bar is how every printed atlas since Ortelius
-// discloses a projection that is not uniform.
-const centuryBar = (from: number) => {
-  const b = scale.bands.find((x) => from >= x.from && from < x.to) ?? scale.bands[0];
-  return Math.round(100 * b.rate);
-};
-
 // Year ticks down the axis. Seven era labels across six thousand pixels left
 // most of the rail blank, so for most of a scroll there was nothing at all
 // saying where in time you were. Stepping by decade and dropping any tick that
@@ -192,16 +183,16 @@ const ticks: { year: number; y: number }[] = [];
             <span class="en"
               >The record is thin across 360 Viking years and thick across the 1940s alone, so each
               decade gets whichever is larger: the room its duration implies, or the room its
-              densest column needs. Each era band carries a bar showing what 100 years measures{" "}
-              <em>there</em> — compare them and the compression is visible rather than inferred.
+              densest column needs. The year marks down the axis thin out where the record is thin
+              and crowd where it is thick, so the compression is visible rather than inferred.
               Periods themselves are conventions, not facts; the atlas argues this with itself at
               <a href="#lindisfarne">793</a>.</span
             >
             <span class="da"
               >Kildematerialet er tyndt gennem 360 vikingeår og tykt alene gennem 1940'erne, så hvert
               årti får det største af to mål: den plads dets varighed tilsiger, eller den plads dets
-              tætteste spalte kræver. Hvert tidsbånd bærer en streg, der viser, hvad 100 år måler{" "}
-              <em>dér</em> — sammenlign dem, og sammentrykningen bliver synlig i stedet for udledt.
+              tætteste spalte kræver. Årstallene ned ad aksen står spredt, hvor kilderne er tynde, og
+              tæt, hvor de er tykke, så sammentrykningen bliver synlig i stedet for udledt.
               Selve periodeinddelingen er en konvention, ikke en kendsgerning; atlasset strides med
               sig selv om det ved <a href="#lindisfarne">793</a>.</span
             >
@@ -224,10 +215,6 @@ const ticks: { year: number; y: number }[] = [];
               <b>{era.from}</b>
               <span class="en">{era.name.en}</span>
               <span class="da">{era.name.da}</span>
-              {/* The scale bar: 100 years drawn at THIS band's rate. */}
-              <i class="scalebar" style={`--bar:${centuryBar(era.from)}px`}>
-                <span class="en">100 yr</span><span class="da">100 år</span>
-              </i>
             </div>
           ))
         }

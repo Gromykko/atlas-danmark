@@ -161,7 +161,7 @@ const data = quizData();
     // A cut is masked, not destroyed: the removed text ships inside a span the
     // reader can lift by hovering or focusing it. Built as DOM rather than
     // innerHTML so dataset text is never parsed as markup.
-    const CUT_OPEN = "", CUT_CLOSE = "";
+    const CUT_OPEN = String.fromCharCode(2), CUT_CLOSE = String.fromCharCode(3);
     function setText(el, str) {
       el.replaceChildren();
       if (!str) return;
