@@ -63,6 +63,21 @@ export function redact(s: string): string {
 
 const hide = (t: Text): Text => ({ en: redact(t.en), da: redact(t.da) });
 
+/**
+ * A hint is only a hint if something survived redacting it.
+ *
+ * 52 of the 94 figures used as hints came out the far side as two or more runs
+ * of dashes — "———— Lindisfarne · ———— Paris · c. ———— Normandy" — rendered in
+ * italic under the clue where help is supposed to be. That is not a hard
+ * question, it is a promise of help that delivers a joke. Show the ones that
+ * survive ("63,3% ja · valgdeltagelse 89,6%") and drop the rest.
+ */
+const usefulHint = (t: Text): boolean => {
+  const cuts = (t.en.match(/————/g) ?? []).length;
+  const rest = t.en.replace(/————/g, "").replace(/[^\p{L}\p{N}%]/gu, "");
+  return cuts <= 1 && rest.length >= 8;
+};
+
 /** Every string a mode can put in front of a player before the reveal. */
 export function quizVisibleStrings(e: AtlasEvent): string[] {
   return [
@@ -95,7 +110,9 @@ export function quizData() {
       title: e.title,
       safeTitle: hide(e.title),
       clue: hide(e.summary),
-      hint: e.figures?.[0] ? hide(e.figures[0].value) : null,
+      hint: e.figures?.[0] && usefulHint(hide(e.figures[0].value))
+        ? hide(e.figures[0].value)
+        : null,
       url: e.sources[0]?.url ?? null
     })),
     links: atlas.links.map((l) => ({ from: l.from, to: l.to, relation: l.relation })),

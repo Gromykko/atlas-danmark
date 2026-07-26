@@ -123,19 +123,67 @@ Six modes, all generated from the dataset:
 | Two accounts | Attributing an interpretation to its frame | `readings[]` |
 | The comparison trap | Comparability of figures | `figures[].basis` |
 
-**Scoring is chance-corrected.** Each answer earns `(raw − c) / (1 − c)` where `c`
-is the expected score of a uniform-random answer *at that item*, derived per
-question. A random player converges to 0 rather than to a comfortable positive
-number, partial knowledge earns proportional credit, and a confidently backwards
-answer costs. The board is not uniform — 36 of 107 events are modern and 6 are
-in the belief column — so an event in a crowded cell is worth less, because
-guessing finds it more often. Every round offers "Not sure", worth exactly zero
-and never negative, which buys calibration data without a slider on every screen.
+### The ramp
 
-Credit for era placement decays in **years, not era indices**: "one era off"
-between the Kalmar Union and the Reformation is 139 years, while between
-Absolutism and the Constitution it can be a single year. An index is not a unit
-of error.
+The first four rounds used to be harder than rounds seven to ten. A difficulty
+counter rose every round and crossed its "hard" threshold on round 4, so the
+single-era sequence — the hardest variant in the game — was the fourth thing a
+new player ever saw, while the gentle two-option tier below the threshold could
+never run at all. Difficulty is now keyed to the round.
+
+**Rounds 1–2 give the column away.** 71% of records have a second defensible
+column, and the same kind of record — a named statute — is filed across five of
+them: `abolition1848` under people, `jodiskfrihedsbrev` under belief,
+`socialreform1933` under economy. A column is an argument the atlas makes, not a
+fact about the event. So early rounds hand it over and the reveal explains the
+filing; from round 6 the player picks it, having seen worked examples.
+
+**The board is a map, not an input device.** Asking someone to resolve two
+independent seven-way decisions in a single click on one of 49 blank rectangles
+was the worst thing about the old game. The grid is now disclosed in two steps —
+the seven column headers are the buttons, then the true column lights up and its
+seven cells carry their year ranges, so a target says what it is. Fourteen
+labelled choices replace 49 blank ones. The full 7×7 appears at the reveal,
+which is the one moment a matrix earns its keep: it shows the answer's
+neighbourhood in both dimensions at once.
+
+Picking the era happens inside the *correct* column whatever was chosen in step
+one, so a column error never contaminates era credit and nobody is asked to
+reason on from a premise the game already knows is wrong.
+
+### Scoring
+
+Each answer earns `(raw − c) / (1 − c)` where `c` is the expected score of a
+uniform-random answer *at that item*. The board is not uniform — 36 of 107 events
+are modern and 6 are in the belief column — so an event in a crowded cell is
+worth less, because guessing finds it more often.
+
+**A round is never negative.** Session totals went negative about 0.4% of the
+time, so the minus signs were never deciding anything; they were decorating a
+third of the rounds with the word "No". The guarantee that guessing is not
+knowledge moved to the session, where it is *computed and printed* rather than
+asserted:
+
+> You **573** · Answering at random lands near **351** · Maximum **1200**
+
+That replaces a score line reading "457 of 1200", which a student reads as 38% —
+a failing mark in a Danish gymnasium — for genuinely good play against a maximum
+nobody reaches. It also replaces a claim that a random player converges to zero,
+which measurement contradicted: with the old floor in place, random guessing
+scored 166 of 1200.
+
+Era credit is **ordinal on the eras themselves** — exact, adjacent, or neither.
+An earlier version decayed credit in years from each era's *midpoint*, on the
+reasoning that "one era off" is 139 years in one place and one year in another.
+The reasoning is right and the implementation inverted it: 43% of the dataset
+sits within 25 years of an era boundary, and for eight of those events the wrong
+era paid **more** than the right one. `march1848` — titled "The end of
+absolutism", filed under Absolutism — paid +84 for the correct answer and +92 for
+the wrong one. A perfect answer now pays 100 on every one of the 107 events; it
+used to pay as little as 76.
+
+Every round offers "Not sure", worth exactly zero, which buys calibration data
+without a confidence slider on every screen.
 
 **The clue must never contain its own answer.** Redaction runs at build time and
 `validate.ts` asserts on the built strings that no year, decade word, century
@@ -144,6 +192,14 @@ reveal — across summaries, titles, figures and readings. Before this was
 tightened the leak was live for 32 of 107 events: `grundlov1849` opened with
 "Signed 5 June 1849", and the old rule's exemption for thousands separators was
 letting through every date that happened to be followed by a comma.
+
+Redaction is not the same as obstruction, though. **Titles are shown**: 102 of
+107 survive redaction untouched and the build proves them leak-free, so hiding
+"The emigration to America" was withholding a free, safe signal. And a **hint is
+only shown if something survived redacting it** — 52 of the 94 figures used as
+hints came out as two or more runs of dashes, set in italic where help belongs.
+"———— Lindisfarne · ———— Paris · c. ———— Normandy" is not a hard clue, it is a
+promise of help that delivers a joke.
 
 **What the game deliberately refuses:** streaks, timers, leaderboards, lives, XP,
 badges, and unlockable content. A streak makes a player want easier questions,

@@ -48,13 +48,15 @@
   --accent: #a83a24;
   --link: #2f5878;
 
-  /* ---- confidence as pattern, not hue ----
-     The rule breaks up as the evidence thins. Readable down a whole column at a
-     glance, which border-style at 1.58:1 never was. */
-  --dash-established: linear-gradient(var(--edge) 0 0);
-  --dash-sourced: repeating-linear-gradient(var(--edge) 0 12px, transparent 12px 16px);
-  --dash-contested: repeating-linear-gradient(var(--edge) 0 5px, transparent 5px 9px);
-  --dash-legendary: repeating-linear-gradient(var(--edge) 0 2px, transparent 2px 6px);
+  /* Confidence is a dash pattern on the theme rule — the rule breaks up as the
+     evidence thins, readable down a whole column at a glance, which
+     border-style at 1.58:1 never was.
+     The gradients are NOT stored as :root custom properties. A var() inside a
+     custom property is resolved where that property is DECLARED, so
+     `--dash-x: linear-gradient(var(--edge) …)` on :root resolved --edge against
+     :root, where it does not exist — making every pattern invalid at
+     computed-value time and rendering background-image: none on all 107 cards.
+     They are written directly on the elements that own an --edge instead. */
 
   /* ---- type ---- */
   --f-display: "Sitka Banner", "Hoefler Text", "Palatino Linotype", Palatino,
@@ -225,9 +227,16 @@ h1 small,
 
 /* ---------------------------------------------------------------- masthead */
 
+/* The measure belongs to the prose, not to the header. Capping the header
+   itself also capped the legend inside it, which then had room for two cramped
+   columns of a three-column key. */
 header {
   padding: 1.75rem clamp(1rem, 4vw, 3rem) 0.9rem;
-  max-width: 78ch;
+}
+h1,
+.lede,
+.audit {
+  max-width: 68ch;
 }
 h1 {
   margin: 0;
@@ -394,18 +403,18 @@ h1 small {
   height: 16px;
   margin-top: 2px;
   --edge: var(--ink-3);
-  background-image: var(--dash, var(--dash-established));
+  background-image: linear-gradient(var(--edge) 0 0);
   background-size: 3px 100%;
   background-repeat: no-repeat;
 }
 .sw.c-sourced {
-  --dash: var(--dash-sourced);
+  background-image: repeating-linear-gradient(var(--edge) 0 12px, transparent 12px 16px);
 }
 .sw.c-contested {
-  --dash: var(--dash-contested);
+  background-image: repeating-linear-gradient(var(--edge) 0 5px, transparent 5px 9px);
 }
 .sw.c-legendary {
-  --dash: var(--dash-legendary);
+  background-image: repeating-linear-gradient(var(--edge) 0 2px, transparent 2px 6px);
 }
 .sw.colour {
   --edge: #7b4b94;
@@ -637,7 +646,7 @@ h1 small {
   border: var(--hairline) solid var(--rule);
   border-left: 3px solid transparent; /* same 3px, now a canvas for the dash */
   background-color: var(--stock);
-  background-image: var(--dash, var(--dash-established));
+  background-image: linear-gradient(var(--edge) 0 0); /* established: unbroken */
   background-size: 3px 100%;
   background-position: 0 0;
   background-repeat: no-repeat;
@@ -645,13 +654,13 @@ h1 small {
   transition: box-shadow 90ms linear, background-color 90ms linear;
 }
 .marker.c-sourced {
-  --dash: var(--dash-sourced);
+  background-image: repeating-linear-gradient(var(--edge) 0 12px, transparent 12px 16px);
 }
 .marker.c-contested {
-  --dash: var(--dash-contested);
+  background-image: repeating-linear-gradient(var(--edge) 0 5px, transparent 5px 9px);
 }
 .marker.c-legendary {
-  --dash: var(--dash-legendary);
+  background-image: repeating-linear-gradient(var(--edge) 0 2px, transparent 2px 6px);
   font-style: italic;
 }
 .marker:hover {

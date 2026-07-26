@@ -17,10 +17,17 @@
  * version estimated height from character count and let the browser lay out
  * freely; the two disagreed and cards overlapped in three places.
  *
- * CHARS_PER_LINE is calibrated to the 1330px plate width set in CSS. Change one
- * and you must change the other.
+ * CHARS_PER_LINE is calibrated to the 1330px plate width set in CSS AND to the
+ * body face. Change either and you must re-measure: at 22 — the value tuned for
+ * Georgia — three Danish titles wrapped to a line the packer had not budgeted
+ * and were silently eaten by the clamp, which is the packer/renderer
+ * disagreement this whole contract exists to prevent. The estimate must stay
+ * PESSIMISTIC: budgeting a line too many costs vertical space, budgeting one too
+ * few loses words.
+ *
+ * Verified by rendering all 107 cards and asserting no title overflows its box.
  */
-export const CHARS_PER_LINE = 22;
+export const CHARS_PER_LINE = 19;
 const LINE = 17;
 const CHROME = 25; // padding + border + the year line
 export const CARD_GAP = 6;

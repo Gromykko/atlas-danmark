@@ -114,9 +114,56 @@ thead th:first-child,
   width: 10rem;
 }
 thead th {
-  padding: 0 0.3rem 0.5rem;
+  padding: 0 0 0.4rem;
   vertical-align: bottom;
   hyphens: auto;
+}
+/* In step one the seven column heads ARE the answer, so they are real buttons
+   with real targets. Asking for a column and an era in a single click on one of
+   49 blank rectangles was the worst thing about the old board. */
+.colpick {
+  display: block;
+  width: 100%;
+  min-height: 3.2rem;
+  padding: 0.4rem 0.3rem;
+  border: var(--hairline) solid transparent;
+  border-radius: 0;
+  background: none;
+  color: var(--ink-3);
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  word-spacing: inherit;
+  cursor: default;
+  transition: background 90ms linear, color 90ms linear;
+}
+#board[data-step="1"] .colpick {
+  border-color: var(--rule);
+  background: var(--stock);
+  color: var(--ink);
+  cursor: pointer;
+}
+#board[data-step="1"] .colpick:hover {
+  background: var(--recess);
+  border-color: var(--ink);
+}
+.colpick.lit {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--sheet);
+}
+.colpick.miss {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+/* Which step you are on, in words. */
+.step {
+  margin: 0 0 0.6rem;
+  font: 600 var(--t-micro) / 1 var(--f-label);
+  text-transform: uppercase;
+  letter-spacing: var(--ls-cap-s);
+  word-spacing: 0.14em;
+  color: var(--ink-3);
 }
 .rowhead {
   text-align: right;
@@ -167,6 +214,24 @@ td button:hover:not(:disabled) {
 }
 td button:disabled {
   cursor: default;
+}
+/* Step two: only the true column is live, and its cells carry the era's years
+   so the target you are aiming at says what it is. */
+td button.live {
+  background: var(--stock);
+  box-shadow: inset 0 0 0 var(--hairline) var(--rule);
+  color: var(--ink-2);
+  font: var(--t-micro) / 1 var(--f-num);
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: 0.04em;
+}
+td button.live:hover {
+  background: var(--recess);
+  box-shadow: inset 0 0 0 2px var(--ink);
+  color: var(--ink);
+}
+td button.off {
+  opacity: 0.32;
 }
 /* The surveyor's registration cross — a fix on the plate — instead of a fill.
    Green-on-red was 1.17:1 against each other and carried the entire result. */
@@ -436,15 +501,48 @@ td button.wrong {
 }
 #end h2 {
   margin: 0;
-  font: 400 clamp(2rem, 6vw, 3rem) / 1 var(--f-num);
+  font: 400 clamp(2.4rem, 7vw, 3.4rem) / 1 var(--f-num);
   font-variant-numeric: tabular-nums lining-nums;
   letter-spacing: -0.01em;
 }
+/* Three numbers on one scale rather than a fraction. "457 of 1200" reads as
+   38% — a failing mark — for genuinely good play against a maximum nobody
+   reaches. Where you landed relative to guessing is the honest measure. */
+.scale {
+  display: grid;
+  grid-template-columns: max-content max-content;
+  gap: 0.15rem 1rem;
+  margin: 0.7rem 0 0.6rem;
+}
+.scale dt {
+  font: 600 var(--t-micro) / 1.4 var(--f-label);
+  text-transform: uppercase;
+  letter-spacing: var(--ls-cap-s);
+  word-spacing: 0.14em;
+  color: var(--ink-3);
+}
+.scale dd {
+  margin: 0;
+  font: var(--t-small) / 1.4 var(--f-num);
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--ink-2);
+}
+.scale dd.you {
+  color: var(--ink);
+  font-weight: 600;
+}
 .endsub {
-  margin: 0.3rem 0 1.4rem;
+  margin: 0.3rem 0 1.6rem;
   color: var(--ink-2);
   font-size: var(--t-small);
   max-width: 54ch;
+}
+.cardtitle {
+  margin: 0 0 0.5rem;
+  font: 400 var(--t-title) / 1.2 var(--f-display);
+  letter-spacing: -0.012em;
+  text-wrap: balance;
+  padding-right: 5.5rem;
 }
 .skills {
   display: grid;
