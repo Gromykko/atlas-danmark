@@ -158,6 +158,25 @@ const data = quizData();
     const eraById = new Map(DATA.eras.map((e) => [e.id, e]));
     const readingsOf = new Map(DATA.readings.map((r) => [r.id, r.readings]));
 
+    // A cut is masked, not destroyed: the removed text ships inside a span the
+    // reader can lift by hovering or focusing it. Built as DOM rather than
+    // innerHTML so dataset text is never parsed as markup.
+    const CUT_OPEN = "", CUT_CLOSE = "";
+    function setText(el, str) {
+      el.replaceChildren();
+      if (!str) return;
+      for (const part of String(str).split(CUT_OPEN)) {
+        const i = part.indexOf(CUT_CLOSE);
+        if (i < 0) { el.append(part); continue; }
+        const span = document.createElement("span");
+        span.className = "cut";
+        span.tabIndex = 0;
+        span.textContent = part.slice(0, i);
+        span.title = L() === "en" ? "Hidden — hover to reveal" : "Skjult — hold musen over for at se";
+        el.append(span, part.slice(i + 1));
+      }
+    }
+
     const rnd = (n) => Math.floor(Math.random() * n);
     const pick = (a) => a[rnd(a.length)];
     const shuffle = (a) => { const c = [...a]; for (let i = c.length - 1; i > 0; i--) { const j = rnd(i + 1); [c[i], c[j]] = [c[j], c[i]]; } return c; };
@@ -499,11 +518,11 @@ const data = quizData();
       // 102 of 107 titles survive redaction untouched and validate.ts proves
       // they are leak-free, so withholding them was not rigour, it was
       // obstruction: "The emigration to America" gives you PEOPLE at a glance.
-      $("cardtitle").textContent = cur.title ? t(cur.title) : "";
+      setText($("cardtitle"), cur.title ? t(cur.title) : "");
       $("cardtitle").hidden = !cur.title;
-      $("clue").textContent = cur.clue ? t(cur.clue) : "";
+      setText($("clue"), cur.clue ? t(cur.clue) : "");
       $("clue").hidden = !cur.clue;
-      $("hint").textContent = cur.hint ? t(cur.hint) : "";
+      setText($("hint"), cur.hint ? t(cur.hint) : "");
       $("hint").hidden = !cur.hint;
       $("skill-now").textContent = t(SKILL[cur.mode]);
 
@@ -520,7 +539,7 @@ const data = quizData();
             const b = document.createElement("button");
             b.type = "button";
             b.className = "choice";
-            b.textContent = t(c.label);
+            setText(b, t(c.label));
             b.disabled = answered;
             b.onclick = () => answer(c.id);
             return b;
@@ -549,7 +568,7 @@ const data = quizData();
         li.className = "slot";
         const id = placed[i];
         if (id) {
-          li.textContent = t(byId.get(id).safeTitle);
+          setText(li, t(byId.get(id).safeTitle));
           li.classList.add("filled");
           li.onclick = () => { placed[i] = null; renderSequence(); };
         } else li.textContent = "—";
@@ -563,9 +582,9 @@ const data = quizData();
         b.type = "button";
         b.className = "seqcard";
         const h = document.createElement("b");
-        h.textContent = t(e.safeTitle);
+        setText(h, t(e.safeTitle));
         const p = document.createElement("span");
-        p.textContent = t(e.clue);
+        setText(p, t(e.clue));
         b.append(h, p);
         b.onclick = () => {
           const i = placed.findIndex((x) => !x);
@@ -607,6 +626,7 @@ const data = quizData();
 
     function reveal(ans, pts) {
       const e = cur.ev;
+      $("main").classList.add("answered");
       if (cur.mode === "place") {
         // The grid is shown WHOLE here — this is the moment a 7×7 earns its
         // keep, showing the answer's neighbourhood in both dimensions at once.
@@ -673,8 +693,8 @@ const data = quizData();
       if (rs)
         for (const r of rs) {
           const bq = document.createElement("blockquote");
-          const h = document.createElement("h3"); h.textContent = t(r.side);
-          const p = document.createElement("p"); p.textContent = t(r.text);
+          const h = document.createElement("h3"); setText(h, t(r.side));
+          const p = document.createElement("p"); setText(p, t(r.text));
           const c = document.createElement("cite"); c.textContent = r.source;
           bq.append(h, p, c);
           extra.append(bq);
@@ -716,6 +736,7 @@ const data = quizData();
       n++;
       answered = false;
       placed = [null, null, null, null];
+      $("main").classList.remove("answered");
       $("round").textContent = n;
       $("result").hidden = true;
       $("end").hidden = true;

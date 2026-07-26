@@ -14,7 +14,18 @@ import { atlas } from "./atlas.ts";
 import { columnOf, eraOf } from "./derived.ts";
 import type { AtlasEvent, Text } from "./schema.ts";
 
-const CUT = "————";
+// A cut keeps what it removed, wrapped in markers, so the page can render it as
+// a masked block the reader may lift if they choose. The consequence is that the
+// year now ships inside the HTML: the guarantee becomes "the clue does not SHOW
+// its answer", not "does not contain it". `visible()` is what the build gate
+// checks, so nothing is ever readable without a deliberate act.
+const M0 = "";
+const M1 = "";
+/** Replacement that KEEPS the matched text, wrapped so the page can mask it. */
+const CUT = M0 + "$&" + M1;
+/** What the reader sees before lifting anything — and what validate.ts checks. */
+export const visible = (s: string) => s.replace(/[^]*/g, "————");
+
 const MO =
   "jan(?:uar[y]?)?|feb(?:ruar[y]?)?|mar(?:ts|ch)?|apr(?:il)?|ma[jy]|jun[ei]?|" +
   "jul[iy]?|aug(?:ust)?|sep(?:t|tember)?|okt(?:ober)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?";
@@ -33,7 +44,7 @@ const RULES: [RegExp, string][] = [
   // The trailing s?/'s is the Danish and English genitive — "Christian 3.s hær",
   // "Christian IV's". Without it the ordinal survives and names the monarch,
   // which for a Danish reader dates the fragment to the decade.
-  [/([A-ZÆØÅ][a-zæøå]{2,})\s+(?:[IVXL]{1,5}|\d{1,2}\.)(?:'?s)?(?=[\s,.;:)'’]|$)/g, "$1 ——"]
+  [/([A-ZÆØÅ][a-zæøå]{2,})\s+((?:[IVXL]{1,5}|\d{1,2}\.)(?:'?s)?)(?=[\s,.;:)'’]|$)/g, "$1 " + M0 + "$2" + M1]
 ];
 
 const AZ = "abcdefghijklmnopqrstuvwxyz";
@@ -73,8 +84,8 @@ const hide = (t: Text): Text => ({ en: redact(t.en), da: redact(t.da) });
  * survive ("63,3% ja · valgdeltagelse 89,6%") and drop the rest.
  */
 const usefulHint = (t: Text): boolean => {
-  const cuts = (t.en.match(/————/g) ?? []).length;
-  const rest = t.en.replace(/————/g, "").replace(/[^\p{L}\p{N}%]/gu, "");
+  const cuts = (t.en.match(//g) ?? []).length;
+  const rest = visible(t.en).replace(/————/g, "").replace(/[^\p{L}\p{N}%]/gu, "");
   return cuts <= 1 && rest.length >= 8;
 };
 

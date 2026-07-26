@@ -230,8 +230,11 @@ h1 small,
 /* The measure belongs to the prose, not to the header. Capping the header
    itself also capped the legend inside it, which then had room for two cramped
    columns of a three-column key. */
+/* The masthead is fixed above a scrolling plate, so every line it takes is a
+   line the plate does not get. At 1280×631 it was 347px of a 631px viewport —
+   more than half the screen spent on chrome. */
 header {
-  padding: 1.75rem clamp(1rem, 4vw, 3rem) 0.9rem;
+  padding: 1.1rem clamp(1rem, 4vw, 3rem) 0.7rem;
 }
 h1,
 .lede,
@@ -252,18 +255,20 @@ h1 small {
 }
 .lede {
   color: var(--ink-2);
-  margin: 0.45rem 0 0.7rem;
+  margin: 0.35rem 0 0.55rem;
   font-size: var(--t-small);
   text-wrap: pretty;
-  max-width: 62ch;
+  max-width: 78ch;
 }
 .audit {
-  margin: 0 0 0.9rem;
-  padding: 0.5rem 0 0.5rem 0.8rem;
+  margin: 0 0 0.7rem;
+  padding: 0.35rem 0 0.35rem 0.7rem;
   border-left: 2px solid var(--rule);
-  font: var(--t-cap) / 1.65 var(--f-label);
+  font: 11px/1.5 var(--f-label);
   color: var(--ink-3);
-  max-width: 66ch;
+  /* Wider measure than the prose: this is a row of numbers, and at 66ch it
+     wrapped to five lines of masthead the plate could not afford. */
+  max-width: 104ch;
 }
 .audit b {
   color: var(--ink);
@@ -451,7 +456,9 @@ h1 small {
 
 .plate-scroll {
   overflow: auto;
-  padding: 0 clamp(1rem, 4vw, 3rem) 4rem;
+  /* The floor is tight on purpose: 0.5rem of gutter is what lets a 1366px
+     laptop hold all seven columns instead of dropping to the gazetteer. */
+  padding: 0 clamp(1rem, 3vw, 3rem) 4rem;
   overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: var(--rule) var(--sheet);
@@ -465,7 +472,7 @@ h1 small {
    also pinned the game page to one viewport, and `overflow:hidden` on body
    propagates to the viewport, so the end screen's review list would have been
    unreachable on desktop. */
-@media (min-width: 1000px) {
+@media (min-width: 1440px) {
   html:has(.plate-scroll) {
     height: 100%;
   }
@@ -587,7 +594,10 @@ h1 small {
 
 .columns {
   display: grid;
-  grid-template-columns: repeat(var(--cols), 1fr);
+  /* minmax(0,1fr), not 1fr: a bare 1fr will not shrink below its content's
+     min-width, so a long head like CULTURE & SCIENCE pushed the whole grid
+     wider than the pane and forced a horizontal scroll. */
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
   position: sticky;
   top: 0;
   z-index: 3;
@@ -927,7 +937,7 @@ a {
  * chronological gazetteer. A plate is a large-format object; the small-format
  * edition of an atlas has always been a gazetteer, not a shrunken plate. This
  * doubles as the print stylesheet for exactly the same reason. */
-@media print, (max-width: 999px) {
+@media print, (max-width: 1439px) {
   body {
     height: auto;
     overflow: visible;

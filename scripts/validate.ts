@@ -7,7 +7,7 @@ import { atlas } from "../src/data/atlas.ts";
 import { isProvisional, isWikipedia, type AtlasEvent, type Lang } from "../src/data/schema.ts";
 import { cardHeight } from "../src/data/layout.ts";
 import { audit, columnOf, plate } from "../src/data/derived.ts";
-import { quizVisibleStrings, redact } from "../src/data/quiz.ts";
+import { quizVisibleStrings, redact, visible } from "../src/data/quiz.ts";
 
 const LANGS: Lang[] = ["en", "da"];
 const errors: string[] = [];
@@ -182,7 +182,7 @@ if (errors.length) {
   const leaks: string[] = [];
   for (const e of atlas.events)
     for (const t of quizVisibleStrings(e)) {
-      const r = redact(t);
+      const r = visible(redact(t));
       for (const m of r.matchAll(REGNAL))
         leaks.push(`${e.id}: regnal "${m[0]}" survives redaction`);
       for (const m of r.matchAll(LEAK)) {
