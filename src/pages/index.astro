@@ -62,39 +62,63 @@ const ticks: { year: number; y: number }[] = [];
   description="Et kildebelagt historisk atlas over Danmark, 690–2026. Hvert nedslag oplyser sit belæg, og omstridt historie vises som omstridt."
 >
   <header>
-    <h1>
-      Atlas Danmark
-      <small>{minYear}–{maxYear}</small>
-    </h1>
-    <p class="lede">
-      <span class="en"
-        >{events.length} sourced records. Contested history is shown with both readings — never one
-        national story quietly chosen.</span
-      >
-      <span class="da"
-        >{events.length} kildebelagte nedslag. Omstridt historie vises med begge læsninger — aldrig
-        én national fortælling valgt i stilhed.</span
-      >
-    </p>
+    <div class="title">
+      <h1>
+        Atlas Danmark
+        <small>{minYear}–{maxYear}</small>
+      </h1>
+      <p class="lede">
+        <span class="en"
+          >{events.length} sourced records. Contested history is shown with both readings — never one
+          national story quietly chosen.</span
+        >
+        <span class="da"
+          >{events.length} kildebelagte nedslag. Omstridt historie vises med begge læsninger — aldrig
+          én national fortælling valgt i stilhed.</span
+        >
+      </p>
+    </div>
 
     {/* The audit ran every build and was thrown away into a console. These are
         the least flattering facts about the atlas, which is why they belong on
         the page: a reference work that publishes its own weakest measurement is
-        making a claim the reader can check. */}
-    <p class="audit">
-      <span class="en">
-        <b>{a.wikipediaOnly}</b>{" "}records rest on Wikipedia alone · <b>{a.singleSource}</b>{" "}of{" "}
-        {a.events} rest on a single citation · <b>{a.topHostShare}%</b>{" "}of {a.urls} source URLs are{" "}
-        {a.topHost} · <b>{a.contestedOneSource}</b>{" "}of {a.contested} contested records cite one work
-        for both readings. This atlas is an index into the scholarship, not a substitute for it.
-      </span>
-      <span class="da">
-        <b>{a.wikipediaOnly}</b>{" "}nedslag hviler alene på Wikipedia · <b>{a.singleSource}</b>{" "}af{" "}
-        {a.events} hviler på én enkelt kilde · <b>{a.topHostShare}%</b>{" "}af {a.urls} kilde-URL'er er{" "}
-        {a.topHost} · <b>{a.contestedOneSource}</b>{" "}af {a.contested} omstridte nedslag henviser til ét
-        værk for begge læsninger. Dette atlas er en indgang til forskningen, ikke en erstatning for den.
-      </span>
-    </p>
+        making a claim the reader can check. Set as a data block in the margin,
+        the way a survey sheet carries its own particulars — a column of figures
+        reads at a glance where the same numbers in a paragraph did not. */}
+    <dl class="audit">
+      <div>
+        <dt>{a.wikipediaOnly}</dt>
+        <dd>
+          <span class="en">rest on Wikipedia alone</span>
+          <span class="da">hviler alene på Wikipedia</span>
+        </dd>
+      </div>
+      <div>
+        <dt>{a.singleSource}<small>/{a.events}</small></dt>
+        <dd>
+          <span class="en">rest on a single citation</span>
+          <span class="da">hviler på én enkelt kilde</span>
+        </dd>
+      </div>
+      <div>
+        <dt>{a.topHostShare}<small>%</small></dt>
+        <dd>
+          <span class="en">of {a.urls} source URLs are {a.topHost}</span>
+          <span class="da">af {a.urls} kilde-URL'er er {a.topHost}</span>
+        </dd>
+      </div>
+      <div>
+        <dt>{a.contestedOneSource}<small>/{a.contested}</small></dt>
+        <dd>
+          <span class="en">contested records cite one work for both readings</span>
+          <span class="da">omstridte nedslag henviser til ét værk for begge læsninger</span>
+        </dd>
+      </div>
+      <p class="audit-note">
+        <span class="en">An index into the scholarship, not a substitute for it.</span>
+        <span class="da">En indgang til forskningen, ikke en erstatning for den.</span>
+      </p>
+    </dl>
 
     <div class="controls">
       <button data-lang-toggle type="button">

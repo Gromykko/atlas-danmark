@@ -227,19 +227,30 @@ h1 small,
 
 /* ---------------------------------------------------------------- masthead */
 
-/* The measure belongs to the prose, not to the header. Capping the header
-   itself also capped the legend inside it, which then had room for two cramped
-   columns of a three-column key. */
 /* The masthead is fixed above a scrolling plate, so every line it takes is a
-   line the plate does not get. At 1280×631 it was 347px of a 631px viewport —
-   more than half the screen spent on chrome. */
+   line the plate does not get — and stacked in one narrow column it was both
+   tall AND leaving two thirds of the width empty. Laid out as a title block:
+   name and lede to the left, the sheet's own particulars to the right, the
+   controls across the foot. Wider costs nothing; taller costs the plate. */
 header {
   padding: 1.1rem clamp(1rem, 4vw, 3rem) 0.7rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.2rem clamp(1.5rem, 5vw, 5rem);
+  align-items: start;
+}
+.title {
+  min-width: 0;
 }
 h1,
-.lede,
-.audit {
-  max-width: 68ch;
+.lede {
+  max-width: 46ch;
+}
+/* One column below the width where two would crowd. */
+@media (max-width: 900px) {
+  header {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 h1 {
   margin: 0;
@@ -260,21 +271,58 @@ h1 small {
   text-wrap: pretty;
   max-width: 78ch;
 }
+/* The sheet's particulars, set as a data block rather than a paragraph. */
 .audit {
-  margin: 0 0 0.7rem;
-  padding: 0.35rem 0 0.35rem 0.7rem;
+  margin: 0.35rem 0 0;
+  padding-left: 0.85rem;
   border-left: 2px solid var(--rule);
-  font: 11px/1.5 var(--f-label);
-  color: var(--ink-3);
-  /* Wider measure than the prose: this is a row of numbers, and at 66ch it
-     wrapped to five lines of masthead the plate could not afford. */
-  max-width: 104ch;
+  display: grid;
+  gap: 0.15rem 1.2rem;
+  align-content: start;
 }
-.audit b {
-  color: var(--ink);
+.audit > div {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+.audit dt {
+  flex: none;
+  min-width: 3.6em;
+  text-align: right;
+  font: 600 var(--t-small) / 1.25 var(--f-num);
   font-variant-numeric: tabular-nums lining-nums;
+  color: var(--ink);
+}
+.audit dt small {
+  font-weight: 400;
+  font-size: 0.72em;
+  color: var(--ink-3);
+}
+.audit dd {
+  margin: 0;
+  font: 11px/1.35 var(--f-label);
+  color: var(--ink-3);
+}
+.audit-note {
+  margin: 0.35rem 0 0;
+  font: italic 11px/1.4 var(--f-body);
+  color: var(--ink-3);
+}
+/* Two columns of figures when the panel is wide enough to hold them. */
+@media (min-width: 1500px) {
+  .audit {
+    grid-template-columns: 1fr 1fr;
+  }
+  .audit-note {
+    grid-column: 1 / -1;
+  }
 }
 
+/* Controls and key run the full width of the title block, under both columns. */
+header > .controls,
+header > .legend {
+  grid-column: 1 / -1;
+}
 .controls,
 .bar {
   display: flex;
@@ -343,7 +391,7 @@ h1 small {
 /* ------------------------------------------------------------------ legend */
 
 .legend {
-  margin: 1rem 0 0;
+  margin: 0.7rem 0 0;
   border-top: var(--hairline) solid var(--hair);
   border-bottom: var(--hairline) solid var(--ink);
   padding: 0.55rem 0 0.7rem;
